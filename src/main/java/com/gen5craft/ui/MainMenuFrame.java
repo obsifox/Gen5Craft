@@ -4,6 +4,7 @@ import com.gen5craft.core.FeatureGate;
 import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.Gen5Versions;
 import com.gen5craft.core.ServerPinger;
+import com.gen5craft.net.LoginSession;
 import com.gen5craft.core.Settings;
 import com.gen5craft.core.WorldModel;
 import com.gen5craft.render.SoftwareRenderer;
@@ -96,7 +97,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 0.5.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 0.6.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -254,6 +255,40 @@ public final class MainMenuFrame extends JFrame {
             }
         });
         form.add(check);
+        final JTextField userField = new JTextField("Gen5Player");
+        form.add(white("Username (offline-mode)"));
+        form.add(userField);
+        JButton loginBtn = new JButton("Login (offline) -> Configuration -> Play");
+        loginBtn.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                final String version = (String) versions.getSelectedItem();
+                com.gen5craft.core.Gen5Versions.Entry entry = com.gen5craft.core.Gen5Versions.find(version);
+                final int protocol = entry != null && entry.protocol > 0 ? entry.protocol : 766;
+                out.setText("Starting Gen-5 login session (protocol " + protocol + ")...");
+                new SwingWorker<LoginSession.Result, String>() {
+                    protected LoginSession.Result doInBackground() throws Exception {
+                        return new LoginSession().connect(address.getText(), protocol, version,
+                                userField.getText(), 6000, new LoginSession.Listener() {
+                                    public void on(String line) { publish(line); }
+                                });
+                    }
+                    protected void process(java.util.List<String> chunks) {
+                        StringBuilder sb = new StringBuilder(out.getText());
+                        for (String c : chunks) sb.append("\n").append(c);
+                        out.setText(sb.toString());
+                    }
+                    protected void done() {
+                        try {
+                            LoginSession.Result r = get();
+                            out.setText(out.getText() + "\n== " + r.detail);
+                        } catch (Exception ex) {
+                            out.setText(out.getText() + "\nLogin failed: " + ex);
+                        }
+                    }
+                }.execute();
+            }
+        });
+        form.add(loginBtn);
         JButton pingBtn = new JButton("Ping (Gen-5 status)");
         pingBtn.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {

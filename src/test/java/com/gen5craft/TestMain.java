@@ -7,6 +7,8 @@ import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.RegistryExtractor;
 import com.gen5craft.core.VarInt;
 import com.gen5craft.core.WorldModel;
+import com.gen5craft.net.LoginSession;
+import com.gen5craft.net.PacketIO;
 import com.gen5craft.render.SoftwareRenderer;
 
 /** Dependency-free test harness (no JUnit download needed on CI). */
@@ -68,6 +70,20 @@ public final class TestMain {
         check(colors.size() > 5, "rendered frame has varied colors (" + colors.size() + ")");
         java.awt.image.BufferedImage frame2 = SoftwareRenderer.renderToImage(160, 120, 0.6);
         check(frame.getRGB(80, 60) == frame2.getRGB(80, 60), "rendering is deterministic");
+        // Phase 4: packet framing (plain + compressed) and offline login builders
+        byte[] framed = PacketIO.frame(0x2B, new byte[]{1, 2, 3}, -1);
+        PacketIO.Packet back = PacketIO.readPacket(new java.io.ByteArrayInputStream(framed), -1);
+        check(back.id == 0x2B && back.payload.length == 3, "packet framing roundtrip (uncompressed)");
+        byte[] big = new byte[500]; for (int i = 0; i < big.length; i++) big[i] = (byte) (i % 7);
+        byte[] framedC = PacketIO.frame(0x10, big, 16);
+        PacketIO.Packet backC = PacketIO.readPacket(new java.io.ByteArrayInputStream(framedC), 16);
+        check(backC.id == 0x10 && backC.payload.length == 500, "packet framing roundtrip (zlib compressed)");
+        check(LoginSession.offlineUuid("Gen5Player").equals(LoginSession.offlineUuid("Gen5Player")), "offline UUID deterministic");
+        check(LoginSession.offlineUuid("Gen5Player").version() == 3, "offline UUID is version 3");
+        check(!LoginSession.offlineUuid("Alice").equals(LoginSession.offlineUuid("Bob")), "offline UUID differs per name");
+        check(LoginSession.buildHandshake(766, "localhost", 25565).length > 8, "handshake packet builds");
+        check(LoginSession.buildLoginStart("Gen5Player").length == 1 + 10 + 16, "login start = name + UUID");
+        check(LoginSession.buildKnownPacks("1.21.5").length > 10, "known packs packet builds");
         System.out.println("ALL TESTS PASSED");
     }
 }
