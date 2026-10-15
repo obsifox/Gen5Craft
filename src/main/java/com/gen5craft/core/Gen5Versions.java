@@ -52,6 +52,13 @@ public final class Gen5Versions {
         return -1;
     }
     public static boolean isGen5(String id) { return indexOf(id) >= 0; }
+    /** First table entry using this protocol, or null. Protocols can be shared
+     *  by a release and its minor follow-up (e.g. 766 = 1.20.5/1.20.6). */
+    public static Entry byProtocol(int protocol) {
+        if (protocol < 766) return null;
+        for (Entry e : TABLE) if (e.protocol == protocol) return e;
+        return null;
+    }
     /** true when version a is not newer than version b inside Gen 5. */
     public static boolean notNewerThan(String a, String b) {
         int ia = indexOf(a), ib = indexOf(b);

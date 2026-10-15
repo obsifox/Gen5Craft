@@ -35,8 +35,9 @@ CI (GitHub Actions, `windows-latest`) compiles, tests, packages the jar and
 the Windows app image, and publishes release assets ready to download.
 
 ## Status / roadmap
-Phase 1 (this build): menu, GPU settings, Gen-5 version gating, manifest
-downloader. The generation model is fixed: crossing below 1.20.5 is a
+Phase 1 (v0.1.0): menu, GPU settings, Gen-5 version gating, manifest downloader.
+Phase 2.1 (v0.2.0, this build): Gen-5 server status ping (VarInt protocol
+foundation, live version/protocol/players detection) in the Multiplayer tab. The generation model is fixed: crossing below 1.20.5 is a
 different generation and is intentionally rejected, not emulated by disabling.
 Later phases add the 3D engine and live server protocol on this foundation.
 

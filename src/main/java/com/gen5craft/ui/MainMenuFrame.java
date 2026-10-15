@@ -3,6 +3,7 @@ package com.gen5craft.ui;
 import com.gen5craft.core.FeatureGate;
 import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.Gen5Versions;
+import com.gen5craft.core.ServerPinger;
 import com.gen5craft.core.Settings;
 
 import javax.swing.*;
@@ -93,7 +94,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 0.1.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 0.2.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -249,6 +250,32 @@ public final class MainMenuFrame extends JFrame {
             }
         });
         form.add(check);
+        JButton pingBtn = new JButton("Ping (Gen-5 status)");
+        pingBtn.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                out.setText("Pinging " + address.getText() + " ...");
+                new SwingWorker<ServerPinger.Status, Void>() {
+                    protected ServerPinger.Status doInBackground() throws Exception {
+                        return ServerPinger.ping(address.getText(), 5000);
+                    }
+                    protected void done() {
+                        try {
+                            ServerPinger.Status st = get();
+                            StringBuilder sb = new StringBuilder();
+                            sb.append(address.getText()).append("  (").append(st.latencyMs).append(" ms)\n");
+                            sb.append("Version: ").append(st.versionName).append("  Protocol: ").append(st.protocol).append("\n");
+                            sb.append("Players: ").append(st.online).append("/").append(st.max).append("\n");
+                            if (st.description.length() > 0) sb.append(st.description).append("\n");
+                            if (st.profile != null) sb.append(st.profile.reason).append("\n");
+                            out.setText(sb.toString());
+                        } catch (Exception ex) {
+                            out.setText("Ping failed: " + ex);
+                        }
+                    }
+                }.execute();
+            }
+        });
+        form.add(pingBtn);
         p.add(form, BorderLayout.NORTH);
         p.add(new JScrollPane(out), BorderLayout.CENTER);
         return p;
