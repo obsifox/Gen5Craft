@@ -36,25 +36,33 @@ jobs:
       - name: Package runnable jars (client + launcher)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force dist, stage-client, stage-launcher | Out-Null
-          Copy-Item -Recurse out/com/gen5craft/core stage-client/com/gen5craft/
-          Copy-Item -Recurse out/com/gen5craft/ui stage-client/com/gen5craft/
-          Copy-Item -Recurse out/com/gen5craft/render stage-client/com/gen5craft/
-          Copy-Item -Recurse out/com/gen5craft/net stage-client/com/gen5craft/
-          Copy-Item out/com/gen5craft/Main.class stage-client/com/gen5craft/
-          Copy-Item -Recurse out/com/gen5craft/launcher stage-launcher/com/gen5craft/
+          New-Item -ItemType Directory -Force dist | Out-Null
           @"
           Main-Class: com.gen5craft.Main
           Implementation-Title: Gen5Craft
-          Implementation-Version: 1.0.0
+          Implementation-Version: 1.0.1
           "@ | Set-Content -Encoding ascii manifest.mf
-          jar cfm dist/Gen5Craft.jar manifest.mf -C stage-client .
+          jar cfm dist/Gen5Craft.jar manifest.mf -C out com/gen5craft/Main.class -C out com/gen5craft/core -C out com/gen5craft/ui -C out com/gen5craft/render -C out com/gen5craft/net
           @"
           Main-Class: com.gen5craft.launcher.LauncherMain
           Implementation-Title: Gen5Craft Launcher
-          Implementation-Version: 1.0.0
+          Implementation-Version: 1.0.1
           "@ | Set-Content -Encoding ascii launcher-manifest.mf
-          jar cfm dist/Gen5Craft-Launcher.jar launcher-manifest.mf -C stage-launcher .
+          jar cfm dist/Gen5Craft-Launcher.jar launcher-manifest.mf -C out com/gen5craft/launcher
+
+      - name: Validate jar layout (packaging gate)
+        shell: pwsh
+        run: |
+          $client = jar tf dist/Gen5Craft.jar
+          if ($client -notcontains "com/gen5craft/Main.class") { throw "Client jar missing Main" }
+          if ($client -notcontains "com/gen5craft/core/Gen5Versions.class") { throw "Client jar layout invalid: core package missing" }
+          if ($client -notcontains "com/gen5craft/render/SoftwareRenderer.class") { throw "Client jar layout invalid: render package missing" }
+          if ($client -notcontains "com/gen5craft/net/LoginSession.class") { throw "Client jar layout invalid: net package missing" }
+          $launcher = jar tf dist/Gen5Craft-Launcher.jar
+          if ($launcher -notcontains "com/gen5craft/launcher/LauncherMain.class") { throw "Launcher jar layout invalid" }
+          javap -classpath dist/Gen5Craft.jar com.gen5craft.Main | Out-Null
+          javap -classpath dist/Gen5Craft-Launcher.jar com.gen5craft.launcher.LauncherMain | Out-Null
+          Write-Host "Jar layout OK"
 
       - name: Windows app images (jpackage)
         shell: pwsh
@@ -75,8 +83,9 @@ jobs:
           $zipHash = (Get-FileHash dist/Gen5Craft-windows.zip -Algorithm SHA256).Hash.ToLower()
           $launcherJarHash = (Get-FileHash dist/Gen5Craft-Launcher.jar -Algorithm SHA256).Hash.ToLower()
           $launcherZipHash = (Get-FileHash dist/Gen5Craft-Launcher-windows.zip -Algorithm SHA256).Hash.ToLower()
+          $installerHash = (Get-FileHash dist/Install-Gen5Craft.ps1 -Algorithm SHA256).Hash.ToLower()
           $manifest = [ordered]@{
-            name = "Gen5Craft"; version = "1.0.0"; platform = "windows";
+            name = "Gen5Craft"; version = "1.0.1"; platform = "windows";
             mainClass = "com.gen5craft.Main";
             game = [ordered]@{ generation = 5; range = "1.20.5-26.3"; latestData = "26.3";
               mojangManifest = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" }
@@ -84,7 +93,8 @@ jobs:
               [ordered]@{ name = "Gen5Craft.jar"; sha256 = $jarHash },
               [ordered]@{ name = "Gen5Craft-windows.zip"; sha256 = $zipHash },
               [ordered]@{ name = "Gen5Craft-Launcher.jar"; sha256 = $launcherJarHash },
-              [ordered]@{ name = "Gen5Craft-Launcher-windows.zip"; sha256 = $launcherZipHash }
+              [ordered]@{ name = "Gen5Craft-Launcher-windows.zip"; sha256 = $launcherZipHash },
+              [ordered]@{ name = "Install-Gen5Craft.ps1"; sha256 = $installerHash }
             )
           }
           $manifest | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 dist/gen5craft-manifest.json
@@ -95,8 +105,8 @@ jobs:
       - name: Publish downloadable release assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: Gen5Craft 1.0.0
+          tag_name: v1.0.1
+          name: Gen5Craft 1.0.1
           draft: true
           files: |
             dist/Gen5Craft.jar
