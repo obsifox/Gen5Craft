@@ -68,19 +68,14 @@ jobs:
           $manifest | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 dist/gen5craft-manifest.json
           Get-Content dist/gen5craft-manifest.json
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Gen5Craft-windows
-          path: |
-            dist/Gen5Craft.jar
-            dist/Gen5Craft-windows.zip
-            dist/gen5craft-manifest.json
-
-      - name: Publish release (on tag)
-        if: startsWith(github.ref, 'refs/tags/')
+      # NOTE: Actions artifact storage quota for this account is full, so the
+      # downloadable build is published as (draft) Release assets instead.
+      - name: Publish downloadable release assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v0.1.0
+          name: Gen5Craft 0.1.0
+          draft: true
           files: |
             dist/Gen5Craft.jar
             dist/Gen5Craft-windows.zip
