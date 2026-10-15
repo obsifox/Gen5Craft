@@ -2,6 +2,7 @@ package com.gen5craft.net;
 
 import com.gen5craft.core.ChunkColumn;
 import com.gen5craft.core.ChunkDataDecoder;
+import com.gen5craft.core.EntityTracker;
 import com.gen5craft.core.VarInt;
 
 import java.io.ByteArrayOutputStream;
@@ -40,6 +41,9 @@ public final class LoginSession {
         public int chunksDecoded;
         public long lastChunkNonAir;
         public ChunkColumn lastChunk;
+        // Phase 8: entity tracking results from the play stream.
+        public int entitiesLive;
+        public String entitySummary = "";
     }
 
     public static UUID offlineUuid(String username) throws Exception {
@@ -156,11 +160,26 @@ public final class LoginSession {
                     socket.setSoTimeout(4000);
                     long deadline = System.currentTimeMillis() + 12000;
                     int playGuard = 0;
+                    final EntityTracker entities = new EntityTracker();
                     try {
                         while (System.currentTimeMillis() < deadline && playGuard++ < 600) {
                             PacketIO.Packet play = PacketIO.readPacket(in, threshold[0]);
                             if (result.firstPlayPacketId < 0) result.firstPlayPacketId = play.id;
-                            if (ChunkDataDecoder.isChunkPacket(protocol, play.id)) {
+                            if (play.id == EntityTracker.addEntityPacketId(protocol)) {
+                                try {
+                                    EntityTracker.Entity ent = entities.onAddEntity(play.payload);
+                                    log(listener, "Entity tracked: " + ent + " (live=" + entities.count() + ")");
+                                } catch (Exception ex) {
+                                    log(listener, "Add Entity packet failed to parse: " + ex.getMessage());
+                                }
+                            } else if (play.id == EntityTracker.removeEntitiesPacketId(protocol)) {
+                                try {
+                                    int gone = entities.onRemoveEntities(play.payload);
+                                    if (gone > 0) log(listener, "Removed " + gone + " entit(ies) (live=" + entities.count() + ")");
+                                } catch (Exception ex) {
+                                    log(listener, "Remove Entities packet failed to parse: " + ex.getMessage());
+                                }
+                            } else if (ChunkDataDecoder.isChunkPacket(protocol, play.id)) {
                                 try {
                                     ChunkColumn col = ChunkDataDecoder.decode(play.payload, protocol);
                                     result.chunksDecoded++;
@@ -185,9 +204,11 @@ public final class LoginSession {
                     } catch (Exception timeout) {
                         log(listener, "Play stream pause/timeout after entry (session goal reached).");
                     }
+                    result.entitiesLive = entities.count();
+                    result.entitySummary = entities.summary();
                     result.detail = result.chunksDecoded > 0
-                            ? "Reached Play state and decoded " + result.chunksDecoded + " chunk(s) from the server. Last: " + result.lastChunk.summary() + "."
-                            : "Reached Play state. First play packet id=0x" + Integer.toHexString(result.firstPlayPacketId) + ". No chunk packet was decoded inside the listen window.";
+                            ? "Reached Play state and decoded " + result.chunksDecoded + " chunk(s) from the server. Last: " + result.lastChunk.summary() + ". " + result.entitySummary + "."
+                            : "Reached Play state. First play packet id=0x" + Integer.toHexString(result.firstPlayPacketId) + ". No chunk packet was decoded inside the listen window. " + result.entitySummary + ".";
                     return result;
                 } else if (pkt.id == 0x0D || pkt.id == 0x0E) { // Select Known Packs (id varies slightly by minor version)
                     PacketIO.writePacket(out, 0x07, buildKnownPacks(serverVersionForPacks), threshold[0]);

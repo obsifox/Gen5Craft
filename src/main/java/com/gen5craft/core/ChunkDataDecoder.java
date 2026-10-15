@@ -280,6 +280,7 @@ public final class ChunkDataDecoder {
         int readUnsignedShort() { return (readUByte() << 8) | readUByte(); }
         int readInt() { return (readUByte() << 24) | (readUByte() << 16) | (readUByte() << 8) | readUByte(); }
         long readLong() { return ((long) readInt() << 32) | (readInt() & 0xFFFFFFFFL); }
+        double readDouble() { return Double.longBitsToDouble(readLong()); }
         int readVarInt() {
             int[] p = {pos};
             int v = VarInt.decode(data, p);

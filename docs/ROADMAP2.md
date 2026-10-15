@@ -10,16 +10,23 @@
       775+ handled) into ChunkColumns, acknowledges chunk batches, echoes
       keep-alives, and renders the last decoded chunk from its real block
       states (26.3 state table pinned from the official server jar). `v1.2.0`
-- [ ] Phase 8 — Player physics, entities and inventory basics <- NEXT
+- [x] Phase 8 — Player physics, entities and inventory basics: an AABB
+      player physics engine (gravity, jumping, axis-separated collision)
+      that runs on decoded chunk data; live entity tracking from Add
+      Entity / Remove Entities packets; and a 36-slot inventory model with
+      vanilla stacking and a hotbar HUD (keys 1-9). `v1.3.0`
 - [ ] Phase 9 — Online-mode Microsoft authentication (owner credential step;
-      never automated or faked)
+      never automated or faked) <- NEXT
 - [ ] Phase 10 — Public release polish (owner decision only)
 
-Gameplay roadmap weights: each phase 20%. After v1.2.0: **40%**.
+Gameplay roadmap weights: each phase 20%. After v1.3.0: **60%**.
 
-Honest boundaries after Phase 7: chunk decoding is wired for live servers
-(packet IDs pinned per protocol 766-777); block-state *naming/coloring* uses
-the pinned 26.3 table, while older Gen-5 servers still decode exact state
-IDs and heights with elevation-based colors until their tables are pinned.
-Reading real saved worlds (Anvil region files) is a later slice, as are
-player physics/entities (Phase 8).
+Honest boundaries after Phase 8: physics treats every non-fluid block as a
+full cube (slab/stair shapes later); entity *movement* packets are not
+applied yet (spawn/remove tracked, positions from spawn); the inventory is
+a model + HUD — server container-content synchronization fills it in a
+later slice, contents are never faked; first-person control of the physics
+player inside the 3D view is a later slice (the orbit camera remains).
+Block-state naming/coloring is pinned for 26.3; older Gen-5 servers decode
+exact state IDs and heights with elevation-based colors. Reading real
+saved worlds (Anvil region files) is also a later slice.

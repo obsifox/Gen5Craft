@@ -14,6 +14,14 @@ public interface BlockStateTable {
     int category(int stateId);
     String version();
 
+    /** Phase 8: solidity for player physics. Fluids and air are not solid;
+     *  everything else is treated as a full cube (slab/stair shapes are a
+     *  later refinement, documented as such). */
+    default boolean isSolid(int stateId) {
+        int c = category(stateId);
+        return c != AIR && c != WATER && c != LAVA;
+    }
+
     /** Table for the given protocol, or null when no pinned table exists yet.
      *  Callers then fall back to air==0 and elevation-based coloring, while the
      *  decoded state IDs and heights stay exact. */
@@ -26,6 +34,7 @@ public interface BlockStateTable {
     BlockStateTable FALLBACK = new BlockStateTable() {
         public boolean isAir(int stateId) { return stateId == 0; }
         public int category(int stateId) { return STONE; }
+        public boolean isSolid(int stateId) { return stateId != 0; }
         public String version() { return "fallback (air=0 only)"; }
     };
 

@@ -3,6 +3,9 @@ package com.gen5craft;
 import com.gen5craft.core.BlockStateTable;
 import com.gen5craft.core.ChunkColumn;
 import com.gen5craft.core.ChunkDataDecoder;
+import com.gen5craft.core.EntityTracker;
+import com.gen5craft.core.Inventory;
+import com.gen5craft.core.PlayerPhysics;
 import com.gen5craft.core.FeatureGate;
 import com.gen5craft.core.Gen5Versions;
 import com.gen5craft.core.DataSummary;
@@ -171,6 +174,64 @@ public final class TestMain {
         check(legacy.topStateAt(0, 0) == 1 && legacy.topYAt(0, 0) == -49, "legacy 766 top stone");
         check(legacy.sectionFluidCounts[0] == -1, "legacy 766 has no fluid-count field");
 
+        // ---- Phase 8: player physics, entities, inventory ----
+        PlayerPhysics.BlockAccess flat = new PlayerPhysics.BlockAccess() {
+            public int stateAt(int x, int y, int z) {
+                if (y < 64) return 1;                    // stone floor, top at y=64
+                if (x >= 12 && y < 67) return 1;         // 3-high wall at x>=12
+                return 0;
+            }
+        };
+        PlayerPhysics player = new PlayerPhysics(8.5, 80, 8.5);
+        for (int i = 0; i < 80; i++) player.tick(flat, BlockStateTable.FALLBACK, 0, 0, false);
+        check(player.onGround && player.y == 64.0, "physics: falls and lands on floor (y=64)");
+        double yBeforeJump = player.y;
+        player.tick(flat, BlockStateTable.FALLBACK, 0, 0, true);
+        check(player.y > yBeforeJump, "physics: jump leaves the ground");
+        for (int i = 0; i < 80; i++) player.tick(flat, BlockStateTable.FALLBACK, 0, 0, false);
+        check(player.onGround && player.y == 64.0, "physics: lands back after jump");
+        for (int i = 0; i < 40; i++) player.tick(flat, BlockStateTable.FALLBACK, 0.2, 0, false);
+        check(player.x > 11.0 && player.x < 11.71, "physics: wall stops horizontal movement (x=" + player.x + ")");
+        check(player.y == 64.0 && player.onGround, "physics: stays grounded while walking");
+        check(PlayerPhysics.findGroundY(flat, BlockStateTable.FALLBACK, 8, 8, 100) == 64.0, "physics: findGroundY finds floor");
+
+        // Physics on the real decoded chunk (stone base + grass surface).
+        PlayerPhysics.BlockAccess chunkAccess = PlayerPhysics.fromChunk(col);
+        PlayerPhysics chunkPlayer = new PlayerPhysics(48.5, 0, -31.5);
+        for (int i = 0; i < 200 && !chunkPlayer.onGround; i++) chunkPlayer.tick(chunkAccess, table263, 0, 0, false);
+        check(chunkPlayer.onGround && chunkPlayer.y == -32.0, "physics: lands on decoded chunk grass (feet y=-32)");
+
+        // Entities: Add Entity prefix (id, UUID, type, position) + Remove Entities.
+        check(EntityTracker.addEntityPacketId(777) == 0x01, "add entity packet id 0x01");
+        check(EntityTracker.removeEntitiesPacketId(777) == 0x4E, "26.3 remove entities id 0x4E");
+        check(EntityTracker.removeEntitiesPacketId(766) == 0x42, "1.20.5 remove entities id 0x42");
+        EntityTracker tracker = new EntityTracker();
+        EntityTracker.Entity ent = tracker.onAddEntity(buildAddEntity(42, 130, 10.5, 64.0, -20.5));
+        check(ent.id == 42 && ent.type == 130, "entity id/type decoded");
+        check(Math.abs(ent.x - 10.5) < 1e-9 && Math.abs(ent.y - 64.0) < 1e-9 && Math.abs(ent.z + 20.5) < 1e-9, "entity position decoded");
+        tracker.onAddEntity(buildAddEntity(43, 130, 0, 65, 0));
+        check(tracker.count() == 2 && tracker.countByType().get(130) == 2, "entities counted by type");
+        java.io.ByteArrayOutputStream rem = new java.io.ByteArrayOutputStream();
+        wVar(rem, 1); wVar(rem, 42);
+        check(tracker.onRemoveEntities(rem.toByteArray()) == 1 && tracker.get(42) == null && tracker.count() == 1, "entity removed by packet");
+        check(tracker.summary().contains("live=1"), "entity summary reports live count");
+
+        // Inventory model: stacking, merging, removal, hotbar selection.
+        Inventory inv = new Inventory();
+        check(inv.add(9, 100) == 0 && inv.countOf(9) == 100, "inventory add 100");
+        check(inv.slotCount(0) == 64 && inv.slotCount(1) == 36, "inventory stacks split at 64");
+        check(inv.add(9, 60) == 0 && inv.countOf(9) == 160, "inventory tops up existing stacks first");
+        check(inv.remove(9, 70) == 70 && inv.countOf(9) == 90, "inventory remove across stacks");
+        inv.select(4);
+        check(inv.selectedSlot() == 4, "hotbar selection");
+        inv.setSlot(4, 5, 3);
+        check(inv.selectedItem() == 5 && inv.slotCount(4) == 3, "setSlot into selected hotbar slot");
+        inv.setSlot(4, 0, 0);
+        check(inv.selectedItem() == 0, "setSlot clears with item 0");
+        Inventory full = new Inventory();
+        for (int i = 0; i < Inventory.SLOTS; i++) full.setSlot(i, i + 1, 64);
+        check(full.add(999, 10) == 10, "full inventory returns leftover");
+
         System.out.println("ALL TESTS PASSED");
     }
 
@@ -282,5 +343,16 @@ public final class TestMain {
         wVar(out, 0); wVar(out, 0); wVar(out, 0); wVar(out, 0); // long-array light masks
         wVar(out, 0); wVar(out, 0);                          // light arrays
         return out.toByteArray();
+    }
+
+    private static byte[] buildAddEntity(int id, int type, double x, double y, double z) {
+        java.io.ByteArrayOutputStream o = new java.io.ByteArrayOutputStream();
+        wVar(o, id);
+        java.util.UUID u = java.util.UUID.fromString("12345678-1234-1234-1234-1234567890ab");
+        wLong(o, u.getMostSignificantBits()); wLong(o, u.getLeastSignificantBits());
+        wVar(o, type);
+        wLong(o, Double.doubleToLongBits(x)); wLong(o, Double.doubleToLongBits(y)); wLong(o, Double.doubleToLongBits(z));
+        o.write(0); o.write(0); o.write(0); // movement/rotation tail (ignored by the tracker)
+        return o.toByteArray();
     }
 }

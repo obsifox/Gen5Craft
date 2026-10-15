@@ -60,7 +60,10 @@ session shipped in **v1.1.0**; Phase 7 live Gen-5 chunk-data decoding shipped
 in **v1.2.0** — after an offline login reaches Play, incoming Level Chunk
 With Light packets are fully decoded (paletted block-state containers,
 heightmaps, block entities, light data) and the last chunk is opened in the
-3D session with its real terrain. Gameplay progress: **40%**; next is
-Phase 8 (player physics, entities, inventory). See `docs/ROADMAP2.md`.
+3D session with its real terrain. Phase 8 shipped in **v1.3.0**: AABB player
+physics running on decoded chunks, live entity tracking (Add/Remove Entity),
+and an inventory model with a hotbar HUD. Gameplay progress: **60%**; next
+is Phase 9 (Microsoft online-mode authentication, an owner credential
+step). See `docs/ROADMAP2.md`.
 Hardening & performance notes: `docs/SECURITY_AND_PERFORMANCE.md`.
 See `docs/PROGRESS.md` (regenerated every release).

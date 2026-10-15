@@ -8,6 +8,7 @@ import com.gen5craft.net.LoginSession;
 import com.gen5craft.core.PerfProfile;
 import com.gen5craft.core.Settings;
 import com.gen5craft.core.WorldModel;
+import com.gen5craft.core.Inventory;
 import com.gen5craft.render.CameraState;
 import com.gen5craft.render.SoftwareRenderer;
 
@@ -34,6 +35,8 @@ public final class MainMenuFrame extends JFrame {
     private final Settings settings;
     private final Path settingsFile;
     private final Path gameDir;
+
+    private final Inventory inventory = new Inventory();
 
     private PanoramaPanel panorama;
     private JPanel glassCardHolder;
@@ -99,7 +102,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 1.2.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 1.3.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -294,7 +297,7 @@ public final class MainMenuFrame extends JFrame {
                             out.setText(out.getText() + "\n== " + r.detail);
                             // Phase 7: show the last chunk decoded from this
                             // server in the 3D session, straight from the wire.
-                            if (r.lastChunk != null) openChunkSession(r.lastChunk, protocol);
+                            if (r.lastChunk != null) openChunkSession(r.lastChunk, protocol, r.entitySummary);
                         } catch (Exception ex) {
                             out.setText(out.getText() + "\nLogin failed: " + ex);
                         }
@@ -414,13 +417,17 @@ public final class MainMenuFrame extends JFrame {
                 "World: " + worldName + " [" + Gen5Versions.latest() + "]");
     }
 
-    // Phase 7: a chunk decoded live from a server, rendered from its real
-    // block-state data (26.3 table when the protocol is pinned to it).
-    private void openChunkSession(final com.gen5craft.core.ChunkColumn chunk, final int protocol) {
+    // Phase 7+8: a chunk decoded live from a server, rendered from its real
+    // block-state data (26.3 table when the protocol is pinned to it), with
+    // the tracked-entity summary and the standing height at the center.
+    private void openChunkSession(final com.gen5craft.core.ChunkColumn chunk, final int protocol, final String entitySummary) {
         com.gen5craft.core.BlockStateTable table = com.gen5craft.core.BlockStateTable.forProtocol(protocol);
+        int groundTop = chunk.topYAt(8, 8);
+        String ground = groundTop == Integer.MIN_VALUE ? "n/a" : String.valueOf(groundTop + 1);
         showRendererSession("Gen5Craft - Server Chunk (" + chunk.chunkX + ", " + chunk.chunkZ + ")",
                 new SoftwareRenderer(chunk, table),
-                "Server chunk (" + chunk.chunkX + ", " + chunk.chunkZ + ") | " + chunk.summary());
+                "Server chunk (" + chunk.chunkX + ", " + chunk.chunkZ + ") | ground Y (center) = " + ground
+                        + " | " + chunk.summary() + (entitySummary == null || entitySummary.isEmpty() ? "" : " | " + entitySummary));
     }
 
     private void showRendererSession(final String title, final SoftwareRenderer renderer, final String hudTitle) {
@@ -442,7 +449,22 @@ public final class MainMenuFrame extends JFrame {
                 g.drawImage(buf, 0, 0, getWidth(), getHeight(), null);
                 g.setColor(new Color(255, 255, 255, 190));
                 g.drawString(hudTitle + " | GPU: " + settings.gpuMode + " | Quality: " + q + " | Scale: " + scalePct + "%", 12, 20);
-                g.drawString("Controls: A/D or drag = rotate, W/S or wheel = zoom", 12, 38);
+                g.drawString("Controls: A/D or drag = rotate, W/S or wheel = zoom, 1-9 = hotbar (" + inventory.summary() + ")", 12, 38);
+                // Phase 8: hotbar (model from Inventory; server container sync fills it later).
+                int hbY = getHeight() - 44;
+                for (int i = 0; i < Inventory.HOTBAR; i++) {
+                    int hx = 12 + i * 40;
+                    g.setColor(new Color(10, 14, 20, 170));
+                    g.fillRect(hx, hbY, 34, 34);
+                    g.setColor(i == inventory.selectedSlot() ? Color.WHITE : new Color(255, 255, 255, 90));
+                    g.drawRect(hx, hbY, 34, 34);
+                    g.setColor(new Color(255, 255, 255, 160));
+                    g.drawString(String.valueOf(i + 1), hx + 4, hbY + 13);
+                    if (inventory.slotItem(i) > 0) {
+                        g.drawString("#" + inventory.slotItem(i), hx + 4, hbY + 25);
+                        g.drawString("x" + inventory.slotCount(i), hx + 4, hbY + 33);
+                    }
+                }
             }
         };
         dlg.setContentPane(canvas);
@@ -451,6 +473,7 @@ public final class MainMenuFrame extends JFrame {
             public void keyPressed(java.awt.event.KeyEvent e) {
                 char k = Character.toUpperCase(e.getKeyChar());
                 if (k == 'A' || k == 'D' || k == 'W' || k == 'S') { camera.key(k); canvas.repaint(); }
+                if (k >= '1' && k <= '9') { inventory.select(k - '1'); canvas.repaint(); }
                 if (e.getKeyCode() == java.awt.event.KeyEvent.VK_LEFT) { camera.rotate(-0.12); canvas.repaint(); }
                 if (e.getKeyCode() == java.awt.event.KeyEvent.VK_RIGHT) { camera.rotate(0.12); canvas.repaint(); }
                 if (e.getKeyCode() == java.awt.event.KeyEvent.VK_UP) { camera.zoomBy(1.08); canvas.repaint(); }
