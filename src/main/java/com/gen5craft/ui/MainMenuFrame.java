@@ -8,6 +8,7 @@ import com.gen5craft.net.LoginSession;
 import com.gen5craft.core.PerfProfile;
 import com.gen5craft.core.Settings;
 import com.gen5craft.core.WorldModel;
+import com.gen5craft.render.CameraState;
 import com.gen5craft.render.SoftwareRenderer;
 
 import javax.swing.*;
@@ -98,7 +99,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 1.0.1  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 1.1.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -182,9 +183,18 @@ public final class MainMenuFrame extends JFrame {
         download.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) { startDownload(bar); }
         });
+        JButton playWorld = new JButton("Play World (Phase 6)");
+        playWorld.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String sel = list.getSelectedValue();
+                String world = (sel == null || sel.equals(i18n.t("worldsEmpty"))) ? "Preview World" : sel.split("  \\[")[0];
+                openRendererPreview(world);
+            }
+        });
+        row.add(playWorld);
         JButton preview3d = new JButton("3D Preview (Phase 3)");
         preview3d.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) { openRendererPreview(); }
+            public void actionPerformed(ActionEvent e) { openRendererPreview("Preview World"); }
         });
         row.add(create); row.add(download); row.add(preview3d);
         JPanel south = new JPanel(new BorderLayout()); south.setOpaque(false);
@@ -396,15 +406,15 @@ public final class MainMenuFrame extends JFrame {
     // Phase 3: software 3D preview. Renders at the configured render scale
     // into a reused off-screen buffer; FPS is capped and the PERFORMANCE
     // profile is fully static, so weak systems never spin.
-    private void openRendererPreview() {
-        final JDialog dlg = new JDialog(this, "Gen5Craft - 3D Preview (software renderer)", false);
+    private void openRendererPreview(final String worldName) {
+        final JDialog dlg = new JDialog(this, "Gen5Craft - Play Session: " + worldName, false);
         dlg.setSize(900, 620);
         dlg.setLocationRelativeTo(this);
         final SoftwareRenderer renderer = new SoftwareRenderer();
         final Settings.Quality q = settings.effectiveQuality();
         final PerfProfile perf = PerfProfile.from(settings);
         final int scalePct = perf.effectiveScale(settings);
-        final double[] angleHolder = {0.6};
+        final CameraState camera = new CameraState();
         final JPanel canvas = new JPanel() {
             private BufferedImage buf;
             protected void paintComponent(Graphics g) {
@@ -412,18 +422,44 @@ public final class MainMenuFrame extends JFrame {
                 int w = Math.max(160, getWidth() * scalePct / 100);
                 int h = Math.max(120, getHeight() * scalePct / 100);
                 if (buf == null || buf.getWidth() != w || buf.getHeight() != h) buf = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
-                renderer.render(buf, angleHolder[0]);
+                renderer.render(buf, camera.yaw, camera.zoom);
                 g.drawImage(buf, 0, 0, getWidth(), getHeight(), null);
                 g.setColor(new Color(255, 255, 255, 190));
-                g.drawString("GPU mode: " + settings.gpuMode + " | Quality: " + q + " | Render scale: " + scalePct + "% | CPU software voxel renderer", 12, 20);
+                g.drawString("World: " + worldName + " [" + Gen5Versions.latest() + "] | GPU: " + settings.gpuMode + " | Quality: " + q + " | Scale: " + scalePct + "%", 12, 20);
+                g.drawString("Controls: A/D or drag = rotate, W/S or wheel = zoom", 12, 38);
             }
         };
         dlg.setContentPane(canvas);
+        canvas.setFocusable(true);
+        canvas.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent e) {
+                char k = Character.toUpperCase(e.getKeyChar());
+                if (k == 'A' || k == 'D' || k == 'W' || k == 'S') { camera.key(k); canvas.repaint(); }
+                if (e.getKeyCode() == java.awt.event.KeyEvent.VK_LEFT) { camera.rotate(-0.12); canvas.repaint(); }
+                if (e.getKeyCode() == java.awt.event.KeyEvent.VK_RIGHT) { camera.rotate(0.12); canvas.repaint(); }
+                if (e.getKeyCode() == java.awt.event.KeyEvent.VK_UP) { camera.zoomBy(1.08); canvas.repaint(); }
+                if (e.getKeyCode() == java.awt.event.KeyEvent.VK_DOWN) { camera.zoomBy(1.0 / 1.08); canvas.repaint(); }
+            }
+        });
+        final int[] lastX = {-1};
+        canvas.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent e) { lastX[0] = e.getX(); canvas.requestFocusInWindow(); }
+        });
+        canvas.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            public void mouseDragged(java.awt.event.MouseEvent e) {
+                if (lastX[0] >= 0) { camera.rotate((e.getX() - lastX[0]) * 0.01); lastX[0] = e.getX(); canvas.repaint(); }
+            }
+        });
+        canvas.addMouseWheelListener(new java.awt.event.MouseWheelListener() {
+            public void mouseWheelMoved(java.awt.event.MouseWheelEvent e) {
+                camera.zoomBy(e.getWheelRotation() < 0 ? 1.1 : 1.0 / 1.1); canvas.repaint();
+            }
+        });
         if (!perf.staticScene && settings.panoramaAnimation) {
             int fps = Math.min(perf.targetFps, 30);
             final Timer timer = new Timer(Math.max(33, 1000 / Math.max(1, fps)), new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
-                    angleHolder[0] += 0.02;
+                    camera.rotate(0.02);
                     canvas.repaint();
                 }
             });

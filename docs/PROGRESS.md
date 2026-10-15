@@ -1,19 +1,15 @@
 # Gen5Craft Progress
 
-[####################] 100% of the roadmap complete (after v1.0.0)
+Foundation roadmap: [####################] 100% (v1.0.0, hotfix v1.0.1)
+Gameplay roadmap:   [####----------------] 20% (after v1.1.0)
 
-- [x] Phase 1 — menu/GPU/gating/downloader (10%)
-- [x] Phase 2.1 — Gen-5 server status ping (5%)
-- [x] Launcher — manifest update + verified install + Play (10%)
-- [x] Phase 2.2 — real 26.3 jar registry/data index (10%)
-- [x] Phase 2.3 — offline world model (10%)
-- [x] Phase 3 — CPU-software 3D renderer honoring GPU modes (25%)
-- [x] Phase 4 — Gen-5 login -> configuration -> play session, offline-mode (25%)
-- [x] Phase 5 — hardening/installer/performance (5%)
+- [x] Phase 6 - Interactive local play session (world -> 3D session, camera
+      rotate/zoom by keys, drag and wheel; GPU/quality aware) `v1.1.0`
+- [ ] Phase 7 - Live Gen-5 chunk-data decoding into the renderer <- NEXT
+- [ ] Phase 8 - Player physics, entities, inventory
+- [ ] Phase 9 - Online-mode Microsoft auth (owner credential step)
+- [ ] Phase 10 - Public release polish (owner decision)
 
-Roadmap: COMPLETE. Honest boundaries that remain (product limits, not
-roadmap items): online-mode Microsoft account auth is a user credential
-step; continuous chunk-level vanilla gameplay simulation is beyond this
-foundation build; making the repo/release public is the owner's decision.
-Local worlds always use the latest data; older Gen-5 servers get newer
-content disabled; below 1.20.5 is rejected as a different generation.
+Remaining on the gameplay roadmap: 80% (Phases 7-10). Honest boundaries:
+online-mode auth is a user step; chunk-level vanilla gameplay arrives in
+Phase 7, not before; public release is the owner's call.

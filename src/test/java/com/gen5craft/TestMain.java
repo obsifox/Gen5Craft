@@ -11,6 +11,7 @@ import com.gen5craft.core.PerfProfile;
 import com.gen5craft.core.Settings;
 import com.gen5craft.net.LoginSession;
 import com.gen5craft.net.PacketIO;
+import com.gen5craft.render.CameraState;
 import com.gen5craft.render.SoftwareRenderer;
 
 /** Dependency-free test harness (no JUnit download needed on CI). */
@@ -95,6 +96,17 @@ public final class TestMain {
         check(com.gen5craft.launcher.LauncherMain.compareVersions("1.0.0", "0.9.9") > 0, "version compare 1.0.0 > 0.9.9");
         check(com.gen5craft.launcher.LauncherMain.compareVersions("0.6.0", "0.6.0") == 0, "version compare equal");
         check(com.gen5craft.launcher.LauncherMain.compareVersions("0.5.9", "0.6.0") < 0, "version compare older");
+        CameraState cam = new CameraState();
+        cam.rotate(Math.PI * 4.0);
+        check(Math.abs(cam.yaw - 0.6) < 1e-9, "camera yaw wraps at 2*PI");
+        cam.key('D'); check(cam.yaw > 0.6, "camera D rotates right");
+        cam.key('W'); check(cam.zoom > 1.0, "camera W zooms in");
+        for (int i = 0; i < 50; i++) cam.zoomBy(1.5);
+        check(cam.zoom == 2.0, "camera zoom clamps at 2.0");
+        for (int i = 0; i < 50; i++) cam.zoomBy(0.5);
+        check(cam.zoom == 0.6, "camera zoom clamps at 0.6");
+        java.awt.image.BufferedImage zoomed = SoftwareRenderer.renderToImage(160, 120, 0.6, 1.8);
+        check(zoomed.getWidth() == 160, "zoomed render keeps buffer size");
         System.out.println("ALL TESTS PASSED");
     }
 }

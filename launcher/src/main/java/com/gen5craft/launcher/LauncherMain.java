@@ -26,7 +26,7 @@ public final class LauncherMain extends JFrame {
     private final Path installDir;
     private final Path clientJar;
     private final JTextField manifestUrl = new JTextField(
-        "https://github.com/obsifox/Gen5Craft/releases/download/v1.0.1/gen5craft-manifest.json");
+        "https://github.com/obsifox/Gen5Craft/releases/download/v1.1.0/gen5craft-manifest.json");
     private final JLabel status = new JLabel("Ready.");
     private final JProgressBar bar = new JProgressBar(0, 100);
     private final JLabel installed = new JLabel("Installed: -");
@@ -60,7 +60,7 @@ public final class LauncherMain extends JFrame {
         JLabel logo = new JLabel("MINECRAFT");
         logo.setFont(new Font("SansSerif", Font.BOLD, 24));
         logo.setForeground(new Color(255, 255, 255, 225));
-        JLabel title = new JLabel("Gen5Craft Launcher 1.0.1  |  Gen 5 (1.20.5 - 26.3)  |  Java 25 / Windows");
+        JLabel title = new JLabel("Gen5Craft Launcher 1.1.0  |  Gen 5 (1.20.5 - 26.3)  |  Java 25 / Windows");
         title.setForeground(new Color(220, 235, 250));
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false); top.setBorder(new EmptyBorder(14, 16, 6, 16));
@@ -188,7 +188,7 @@ public final class LauncherMain extends JFrame {
         if (Files.exists(local)) { status.setText("Using local manifest: " + local); return new String(Files.readAllBytes(local), StandardCharsets.UTF_8); }
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build();
         HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create(manifestUrl.getText().trim()))
-                .header("User-Agent", "Gen5Craft-Launcher/1.0.1").GET().build(), HttpResponse.BodyHandlers.ofString());
+                .header("User-Agent", "Gen5Craft-Launcher/1.1.0").GET().build(), HttpResponse.BodyHandlers.ofString());
         if (res.statusCode() != 200) throw new IllegalStateException("Manifest HTTP " + res.statusCode());
         return res.body();
     }
@@ -196,7 +196,7 @@ public final class LauncherMain extends JFrame {
         Files.createDirectories(dest.getParent());
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build();
         HttpResponse<InputStream> res = http.send(HttpRequest.newBuilder(URI.create(url))
-                .header("User-Agent", "Gen5Craft-Launcher/1.0.1").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+                .header("User-Agent", "Gen5Craft-Launcher/1.1.0").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
         if (res.statusCode() != 200) throw new IllegalStateException("Download HTTP " + res.statusCode() + " for " + url);
         Path tmp = dest.resolveSibling(dest.getFileName().toString() + ".part");
         InputStream in = res.body(); OutputStream out = Files.newOutputStream(tmp);

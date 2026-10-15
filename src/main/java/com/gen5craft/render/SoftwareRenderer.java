@@ -58,7 +58,10 @@ public final class SoftwareRenderer {
     }
 
     /** Render one frame into {@code img} (reused by callers). angle in radians. */
-    public void render(BufferedImage img, double angle) {
+    public void render(BufferedImage img, double angle) { render(img, angle, 1.0); }
+
+    /** Render with a camera zoom factor (0.6 .. 2.0, clamped by CameraState). */
+    public void render(BufferedImage img, double angle, double zoom) {
         int w = img.getWidth(), h = img.getHeight();
         Graphics2D g = img.createGraphics();
         try {
@@ -78,7 +81,7 @@ public final class SoftwareRenderer {
                 while (j >= 0 && depth(order[j], cos, sin) > dv) { order[j + 1] = order[j]; j--; }
                 order[j + 1] = v;
             }
-            int tile = Math.max(8, Math.min(w, h) / 22);
+            int tile = Math.max(4, (int) Math.round(Math.min(w, h) / 22.0 * zoom));
             int cx = w / 2, cy = h / 3;
             for (int i = 0; i < n; i++) {
                 int x = (order[i] >> 8) & 0xFF, z = order[i] & 0xFF;
@@ -117,8 +120,11 @@ public final class SoftwareRenderer {
     }
 
     public static BufferedImage renderToImage(int w, int h, double angle) {
+        return renderToImage(w, h, angle, 1.0);
+    }
+    public static BufferedImage renderToImage(int w, int h, double angle, double zoom) {
         BufferedImage img = new BufferedImage(Math.max(16, w), Math.max(16, h), BufferedImage.TYPE_INT_RGB);
-        new SoftwareRenderer().render(img, angle);
+        new SoftwareRenderer().render(img, angle, zoom);
         return img;
     }
 }
