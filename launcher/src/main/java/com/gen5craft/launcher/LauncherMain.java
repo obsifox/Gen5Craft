@@ -26,17 +26,18 @@ public final class LauncherMain extends JFrame {
     private final Path installDir;
     private final Path clientJar;
     private final JTextField manifestUrl = new JTextField(
-        "https://github.com/obsifox/Gen5Craft/releases/download/v1.5.0/gen5craft-manifest.json");
+        "https://github.com/obsifox/Gen5Craft/releases/download/v1.6.0/gen5craft-manifest.json");
     private final JLabel status = new JLabel("Ready.");
     private final JProgressBar bar = new JProgressBar(0, 100);
     private final JLabel installed = new JLabel("Installed: -");
     // Local profile (Phase 9 revised): name + skin + cape, shown on the profile card.
     private Profile profile = new Profile();
     private Path profileFile;
-    private JLabel headLabel, profileInfo, capeSwatch, skinPathLabel;
+    private JLabel headLabel, profileInfo, capeSwatch, skinPathLabel, capePathLabel;
     private JTextField profileNameField;
     private JComboBox<String> skinCombo, capeCombo;
     private String chosenSkinPath = "";
+    private String chosenCapePath = "";
 
     public LauncherMain() {
         super("Gen5Craft Launcher");
@@ -47,8 +48,8 @@ public final class LauncherMain extends JFrame {
         profileFile = installDir.resolve("profile.json");
         profile = Profile.load(profileFile);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(860, 640));
-        setSize(980, 700);
+        setMinimumSize(new Dimension(880, 690));
+        setSize(1000, 750);
         setLocationRelativeTo(null);
         buildUi();
         refreshInstalled();
@@ -70,7 +71,7 @@ public final class LauncherMain extends JFrame {
         JLabel logo = new JLabel("MINECRAFT");
         logo.setFont(new Font("SansSerif", Font.BOLD, 24));
         logo.setForeground(new Color(255, 255, 255, 225));
-        JLabel title = new JLabel("Gen5Craft Launcher 1.5.0  |  Gen 5 (1.20.5 - 26.3)  |  Java 25 / Windows");
+        JLabel title = new JLabel("Gen5Craft Launcher 1.6.0  |  Gen 5 (1.20.5 - 26.3)  |  Java 25 / Windows");
         title.setForeground(new Color(220, 235, 250));
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false); top.setBorder(new EmptyBorder(14, 16, 6, 16));
@@ -161,6 +162,15 @@ public final class LauncherMain extends JFrame {
             skinPathLabel.setText(fc.getSelectedFile().getName());
         }
     }
+    private void chooseCapeFile() {
+        JFileChooser fc = new JFileChooser();
+        fc.setDialogTitle("Choose a cape PNG (Minecraft cape texture 64x32, or any image)");
+        if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            chosenCapePath = fc.getSelectedFile().getAbsolutePath();
+            capeCombo.setSelectedIndex(Profile.Cape.values().length);
+            capePathLabel.setText(fc.getSelectedFile().getName());
+        }
+    }
     private void saveProfile() {
         String name = Profile.sanitize(profileNameField.getText());
         if (name == null) { status.setText("Invalid profile name: use 3-16 letters, digits or underscore."); return; }
@@ -170,7 +180,18 @@ public final class LauncherMain extends JFrame {
             status.setText("Pick a skin PNG first, or switch back to Default Steve.");
             return;
         }
-        profile.cape = Profile.Cape.values()[capeCombo.getSelectedIndex()];
+        boolean customCape = capeCombo.getSelectedIndex() == Profile.Cape.values().length;
+        if (customCape) {
+            if (chosenCapePath.isEmpty()) { status.setText("Pick a cape PNG first, or choose a built-in cape color."); return; }
+            Profile probe = new Profile(); probe.capePath = chosenCapePath;
+            if (SkinTextures.loadCape(probe) == null) {
+                status.setText("That cape file could not be read as an image."); return;
+            }
+            profile.capePath = chosenCapePath;
+        } else {
+            profile.capePath = "";
+            profile.cape = Profile.Cape.values()[capeCombo.getSelectedIndex()];
+        }
         try {
             profile.save(profileFile);
             refreshProfileCard();
@@ -180,18 +201,27 @@ public final class LauncherMain extends JFrame {
     private void refreshProfileCard() {
         if (headLabel == null) return;
         SkinTextures.Loaded loaded = SkinTextures.loadSkin(installDir, profile);
-        headLabel.setIcon(new ImageIcon(SkinTextures.headCube(loaded.skin, 104)));
+        java.awt.image.BufferedImage capeTex = SkinTextures.loadCape(profile);
+        // 3D-style character preview: head + torso + cape (custom image or color).
+        headLabel.setIcon(new ImageIcon(SkinTextures.characterPreview(loaded.skin, capeTex, profile.cape, 170, 205)));
         String uuid = profile.offlineUuid().toString();
+        String capeText = profile.hasCustomCape()
+                ? (capeTex != null ? "custom cape image: " + Paths.get(profile.capePath).getFileName() : "custom cape image (file missing!)")
+                : profile.cape.label;
         profileInfo.setText("<html><b><font size=+1>" + profile.name + "</font></b> &nbsp;(local account)<br>"
                 + "Offline UUID: " + uuid.substring(0, 8) + "..." + uuid.substring(uuid.length() - 4) + "<br>"
                 + "Skin: " + loaded.source + "<br>"
-                + "Cape: " + profile.cape.label + " (cosmetic, local only)</html>");
-        capeSwatch.setIcon(new ImageIcon(SkinTextures.capePreview(profile.cape, 30, 40)));
+                + "Cape: " + capeText + " (cosmetic, local only)</html>");
+        capeSwatch.setIcon(new ImageIcon(profile.hasCustomCape() && capeTex != null
+                ? SkinTextures.capeTexturePreview(capeTex, 30, 40)
+                : SkinTextures.capePreview(profile.cape, 30, 40)));
         profileNameField.setText(profile.name);
         skinCombo.setSelectedIndex(profile.skinPath == null || profile.skinPath.isEmpty() ? 0 : 1);
         chosenSkinPath = profile.skinPath == null ? "" : profile.skinPath;
         skinPathLabel.setText(chosenSkinPath.isEmpty() ? "" : Paths.get(chosenSkinPath).getFileName().toString());
-        capeCombo.setSelectedIndex(profile.cape.ordinal());
+        capeCombo.setSelectedIndex(profile.hasCustomCape() ? Profile.Cape.values().length : profile.cape.ordinal());
+        chosenCapePath = profile.capePath == null ? "" : profile.capePath;
+        capePathLabel.setText(chosenCapePath.isEmpty() ? "" : Paths.get(chosenCapePath).getFileName().toString());
     }
 
     private JButton big(String t) {
@@ -228,6 +258,15 @@ public final class LauncherMain extends JFrame {
         } catch (Exception e) { return false; }
     }
     private void play() {
+        if (!Files.exists(clientJar)) {
+            // One-click flow: install the client first, then launch it.
+            status.setText("Client not installed yet - installing it first, then starting...");
+            updateClient(new Runnable() { public void run() { launchClient(); } });
+            return;
+        }
+        launchClient();
+    }
+    private void launchClient() {
         if (!Files.exists(clientJar)) { status.setText("Client is not installed yet. Run Check / Update client first."); return; }
         if (!verifyInstalled()) { status.setText("Integrity check FAILED: installed client does not match its manifest SHA-256. Run Check / Update client."); return; }
         try {
@@ -235,7 +274,7 @@ public final class LauncherMain extends JFrame {
                     System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java").toString();
             new ProcessBuilder(javaBin, "-Xmx2G", "-jar", clientJar.toString())
                     .directory(installDir.toFile()).start();
-            status.setText("Gen5Craft started.");
+            status.setText("Gen5Craft started. On first start it downloads the official 26.3 game data automatically.");
         } catch (Exception ex) { status.setText("Start failed: " + ex.getMessage()); }
     }
     private void openFolder() {
@@ -243,7 +282,8 @@ public final class LauncherMain extends JFrame {
         catch (Exception ex) { status.setText("Open failed: " + ex.getMessage()); }
     }
 
-    private void updateClient() {
+    private void updateClient() { updateClient(null); }
+    private void updateClient(final Runnable afterSuccess) {
         bar.setValue(0); status.setText("Resolving manifest...");
         new SwingWorker<Void, String>() {
             protected Void doInBackground() throws Exception {
@@ -264,7 +304,8 @@ public final class LauncherMain extends JFrame {
             }
             protected void process(java.util.List<String> chunks) { status.setText(chunks.get(chunks.size() - 1)); }
             protected void done() {
-                try { get(); } catch (Exception ex) { status.setText("Update failed: " + rootMsg(ex) + "  (private draft releases need a public manifest URL or a local manifest file)"); }
+                try { get(); if (afterSuccess != null) afterSuccess.run(); }
+                catch (Exception ex) { status.setText("Update failed: " + rootMsg(ex) + "  (check your connection, or keep a local gen5craft-manifest.json next to the launcher)"); }
                 refreshInstalled();
             }
         }.execute();
@@ -282,7 +323,7 @@ public final class LauncherMain extends JFrame {
         if (Files.exists(local)) { status.setText("Using local manifest: " + local); return new String(Files.readAllBytes(local), StandardCharsets.UTF_8); }
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build();
         HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create(manifestUrl.getText().trim()))
-                .header("User-Agent", "Gen5Craft-Launcher/1.5.0").GET().build(), HttpResponse.BodyHandlers.ofString());
+                .header("User-Agent", "Gen5Craft-Launcher/1.6.0").GET().build(), HttpResponse.BodyHandlers.ofString());
         if (res.statusCode() != 200) throw new IllegalStateException("Manifest HTTP " + res.statusCode());
         return res.body();
     }
@@ -290,7 +331,7 @@ public final class LauncherMain extends JFrame {
         Files.createDirectories(dest.getParent());
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build();
         HttpResponse<InputStream> res = http.send(HttpRequest.newBuilder(URI.create(url))
-                .header("User-Agent", "Gen5Craft-Launcher/1.5.0").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+                .header("User-Agent", "Gen5Craft-Launcher/1.6.0").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
         if (res.statusCode() != 200) throw new IllegalStateException("Download HTTP " + res.statusCode() + " for " + url);
         Path tmp = dest.resolveSibling(dest.getFileName().toString() + ".part");
         InputStream in = res.body(); OutputStream out = Files.newOutputStream(tmp);

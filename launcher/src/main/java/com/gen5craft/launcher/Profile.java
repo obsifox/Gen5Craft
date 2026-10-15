@@ -34,6 +34,11 @@ public final class Profile {
     /** "" = default Steve; otherwise a path to a custom 64x64 skin PNG. */
     public String skinPath = "";
     public Cape cape = Cape.NONE;
+    /** "" = use the built-in cape color above; otherwise a path to a custom
+     *  cape image (a Minecraft cape texture 64x32, or any PNG used as the
+     *  cape's front panel). A custom cape image wins over the color. */
+    public String capePath = "";
+    public boolean hasCustomCape() { return capePath != null && !capePath.trim().isEmpty(); }
 
     /** Mojang-style name rule: 3-16 chars of [A-Za-z0-9_]. Returns null when invalid. */
     public static String sanitize(String raw) {
@@ -54,7 +59,7 @@ public final class Profile {
 
     public String toJson() {
         return "{\n  \"account\": \"local\",\n  \"name\": \"" + esc(name) + "\",\n  \"skin\": \"" + esc(skinPath)
-                + "\",\n  \"cape\": \"" + cape.name() + "\"\n}\n";
+                + "\",\n  \"cape\": \"" + cape.name() + "\",\n  \"capeImage\": \"" + esc(capePath) + "\"\n}\n";
     }
     public static Profile fromJson(String json) {
         Profile p = new Profile();
@@ -64,6 +69,8 @@ public final class Profile {
         if (skin != null) p.skinPath = skin;
         String cape = extract(json, "\"cape\": \"");
         if (cape != null) p.cape = Cape.byName(cape);
+        String capeImg = extract(json, "\"capeImage\": \"");
+        if (capeImg != null) p.capePath = capeImg;
         return p;
     }
     public void save(Path file) throws Exception {

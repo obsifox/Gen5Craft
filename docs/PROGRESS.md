@@ -19,6 +19,11 @@ Gameplay roadmap:   [####################] 100% (after v1.5.0)
       README/install flow, final version v1.5.0 published publicly on
       GitHub (repository + release) by owner decision `v1.5.0`
 
+Post-roadmap maintenance: v1.6.0 - automatic first-run game-data
+download in the client (progress + retry), one-click install-then-play in
+the launcher, custom cape PNG import with a 3D character preview
+(head + torso + cape) on the profile card.
+
 Remaining on the gameplay roadmap: 0% — both roadmaps complete.
 Honest boundaries that remain true after v1.5.0: online-mode servers still
 require real Microsoft authentication, which the local profile does not

@@ -74,5 +74,11 @@ the card. It is not a Microsoft/Mojang login. Phase 10 shipped in
 **v1.5.0**: public release polish and the first public release of this
 repository. Gameplay progress: **100%** — both roadmaps are complete. See
 `docs/ROADMAP2.md`.
+
+Post-roadmap maintenance: **v1.6.0** makes the first-run flow automatic -
+the client downloads the official game data by itself on first start
+(with progress), the launcher's Play installs the client when missing,
+and capes can be imported as PNG images and are shown on a 3D character
+preview (head + torso + cape) on the profile card.
 Hardening & performance notes: `docs/SECURITY_AND_PERFORMANCE.md`.
 See `docs/PROGRESS.md` (regenerated every release).

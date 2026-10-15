@@ -21,6 +21,15 @@ import java.util.function.IntConsumer;
  *  connections and weak machines never re-download or waste work. */
 public final class GameDownloader {
     public static final String MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+
+    /** True when the core game data for a version is already on disk
+     *  (the downloaded official client jar exists and is non-empty). */
+    public static boolean isDataReady(Path gameDir, String versionId) {
+        try {
+            Path jar = gameDir.resolve("versions/" + versionId + "/" + versionId + ".jar");
+            return Files.isRegularFile(jar) && Files.size(jar) > 1_000_000L;
+        } catch (Exception e) { return false; }
+    }
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build();
 

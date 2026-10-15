@@ -2,6 +2,7 @@ package com.gen5craft;
 
 import com.gen5craft.core.BlockStateTable;
 import com.gen5craft.core.ChunkColumn;
+import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.ChunkDataDecoder;
 import com.gen5craft.core.EntityTracker;
 import com.gen5craft.core.Inventory;
@@ -289,6 +290,43 @@ public final class TestMain {
         java.awt.image.BufferedImage capeImg = SkinTextures.capePreview(Profile.Cape.CRIMSON, 30, 40);
         check(capeImg.getRGB(15, 4) == Profile.Cape.CRIMSON.color.getRGB(), "cape preview uses cape color");
         check(SkinTextures.capePreview(Profile.Cape.NONE, 30, 40).getRGB(15, 20) == 0, "no-cape preview stays empty");
+
+        // ---- v1.6.0: auto game-data download readiness + custom cape image / 3D character ----
+        java.nio.file.Path gd = java.nio.file.Files.createTempDirectory("gen5-gamedata");
+        check(!GameDownloader.isDataReady(gd, "26.3"), "game data not ready in empty dir");
+        java.nio.file.Path vDir = gd.resolve("versions/26.3");
+        java.nio.file.Files.createDirectories(vDir);
+        java.nio.file.Files.write(vDir.resolve("26.3.jar"), new byte[16]);
+        check(!GameDownloader.isDataReady(gd, "26.3"), "tiny placeholder jar is not ready data");
+        java.nio.file.Files.write(vDir.resolve("26.3.jar"), new byte[1_100_000]);
+        check(GameDownloader.isDataReady(gd, "26.3"), "real-size client jar counts as ready data");
+
+        Profile capeProf = new Profile();
+        capeProf.capePath = "/tmp/capes/my-cape.png";
+        Profile capeBack = Profile.fromJson(capeProf.toJson());
+        check(capeBack.hasCustomCape() && capeBack.capePath.equals("/tmp/capes/my-cape.png"), "custom cape path JSON roundtrip");
+        check(SkinTextures.loadCape(capeProf) == null, "missing cape file loads as null (no crash)");
+
+        java.awt.image.BufferedImage capeTex = new java.awt.image.BufferedImage(64, 32, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D cg = capeTex.createGraphics();
+        cg.setColor(new java.awt.Color(0, 255, 0)); cg.fillRect(1, 1, 10, 16); cg.dispose();
+        java.nio.file.Path capeFile = profDir.resolve("cape.png");
+        javax.imageio.ImageIO.write(capeTex, "png", capeFile.toFile());
+        Profile texProf = new Profile(); texProf.capePath = capeFile.toString();
+        java.awt.image.BufferedImage loadedCape = SkinTextures.loadCape(texProf);
+        check(loadedCape != null && loadedCape.getWidth() == 64, "custom cape texture loads");
+        check(SkinTextures.capeFrontPanel(loadedCape).getRGB(0, 0) == 0xFF00FF00, "cape front panel is region (1,1,10,16)");
+        check(SkinTextures.capeTexturePreview(loadedCape, 30, 40).getRGB(15, 20) == 0xFF00FF00, "cape texture preview shows the image");
+
+        java.awt.image.BufferedImage bustSolid = SkinTextures.characterPreview(steve, null, Profile.Cape.CRIMSON, 170, 205);
+        check(bustSolid.getRGB(85, 30) != 0, "character preview renders the head");
+        check(bustSolid.getRGB(70, 120) != 0, "character preview renders the torso (Steve shirt)");
+        int crimsonShade = (0xFF << 24) | (135 << 16) | (27 << 8) | 36;
+        check(bustSolid.getRGB(85, 160) == crimsonShade, "solid cape hangs behind/below the torso in 3D preview");
+        java.awt.image.BufferedImage bustTex = SkinTextures.characterPreview(steve, loadedCape, Profile.Cape.NONE, 170, 205);
+        check(bustTex.getRGB(85, 160) == 0xFF00FF00, "custom cape image textures the 3D cape");
+        java.awt.image.BufferedImage bustNone = SkinTextures.characterPreview(steve, null, Profile.Cape.NONE, 170, 205);
+        check(bustNone.getRGB(85, 160) == 0, "no cape -> nothing hangs below the torso");
 
         System.out.println("ALL TESTS PASSED");
     }

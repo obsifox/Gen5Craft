@@ -145,8 +145,8 @@ public final class SkinTextures {
     }
     private static BufferedImage shade(BufferedImage src, double f) {
         if (f >= 0.999) return src;
-        BufferedImage out = new BufferedImage(8, 8, BufferedImage.TYPE_INT_ARGB);
-        for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
+        BufferedImage out = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < src.getHeight(); y++) for (int x = 0; x < src.getWidth(); x++) {
             int argb = src.getRGB(x, y);
             int a = (argb >>> 24) & 0xFF, r = (argb >> 16) & 0xFF, gg = (argb >> 8) & 0xFF, b = argb & 0xFF;
             out.setRGB(x, y, (a << 24) | ((int) (r * f) << 16) | ((int) (gg * f) << 8) | (int) (b * f));
@@ -168,6 +168,110 @@ public final class SkinTextures {
         }
         g.dispose();
         return out;
+    }
+
+    /** Load the profile's custom cape image, or null when none/unreadable.
+     *  A Minecraft cape texture (64x32) is used as-is; any other PNG is
+     *  accepted and treated as the cape's front-panel artwork. */
+    public static BufferedImage loadCape(Profile profile) {
+        if (profile == null || !profile.hasCustomCape()) return null;
+        try {
+            BufferedImage img = ImageIO.read(new File(profile.capePath.trim()));
+            if (img == null) return null;
+            if (img.getWidth() == 64 && img.getHeight() == 32) return img;
+            BufferedImage out = new BufferedImage(Math.max(1, img.getWidth()), Math.max(1, img.getHeight()), BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = out.createGraphics(); g.drawImage(img, 0, 0, null); g.dispose();
+            return out;
+        } catch (Exception ignored) { return null; }
+    }
+
+    /** The visible front panel of a cape: region (1,1,10,16) of a real cape
+     *  texture; for a plain user image, the whole image is the panel. */
+    public static BufferedImage capeFrontPanel(BufferedImage capeTex) {
+        if (capeTex == null) return null;
+        if (capeTex.getWidth() == 64 && capeTex.getHeight() == 32) return capeTex.getSubimage(1, 1, 10, 16);
+        return capeTex;
+    }
+
+    /** Preview swatch for a custom cape texture (its front panel). */
+    public static BufferedImage capeTexturePreview(BufferedImage capeTex, int w, int h) {
+        BufferedImage out = new BufferedImage(Math.max(8, w), Math.max(12, h), BufferedImage.TYPE_INT_ARGB);
+        BufferedImage panel = capeFrontPanel(capeTex);
+        if (panel != null) {
+            Graphics2D g = out.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.drawImage(panel, 0, 0, w, h, null);
+            g.setColor(new Color(255, 255, 255, 120)); g.drawRoundRect(0, 0, w - 1, h - 1, 6, 6);
+            g.dispose();
+        }
+        return out;
+    }
+
+    /** 3D-style character preview for the profile card: the isometric head
+     *  cube over an isometric torso (front + side + shoulders from the
+     *  skin), with the cape hanging behind the torso — visible below and at
+     *  the sides, textured with the custom cape image when one is set, a
+     *  solid built-in cape color otherwise, and absent for Cape.NONE. */
+    public static BufferedImage characterPreview(BufferedImage skin, BufferedImage capeTex, Profile.Cape cape, int w, int h) {
+        BufferedImage out = new BufferedImage(Math.max(60, w), Math.max(80, h), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        int W = out.getWidth(), H = out.getHeight();
+        double cx = W / 2.0;
+        // Torso geometry (front face on the left, side face on the right,
+        // same 2:1 projection as the head cube; the front face is exactly
+        // as wide as the head's front face, the side half as wide again).
+        double fx = W * 0.218, fy = fx * 0.5;                // front top edge vector
+        double sx = W * 0.109, sy = -sx * 0.5;               // side top edge vector
+        double tlX = cx - fx, tlY = H * 0.37;                // torso front top-left
+        double torsoH = H * 0.285;                           // vertical edge length
+        // 1) Cape behind the torso: wider and longer, so it shows below the
+        //    torso and peeks at both sides, like in-game from the front.
+        boolean hasCape = capeTex != null || (cape != null && cape != Profile.Cape.NONE);
+        if (hasCape) {
+            double cTlX = tlX - W * 0.035, cTlY = tlY + H * 0.01;
+            double cFx = fx + sx + W * 0.07, cFy = fy + sy;
+            double capeH = torsoH + H * 0.13;
+            AffineTransform capeT = new AffineTransform(cFx, cFy, 0, capeH, cTlX, cTlY);
+            BufferedImage panel = capeFrontPanel(capeTex);
+            if (panel != null) {
+                drawTex(g, panel, capeT);
+            } else {
+                java.awt.geom.Path2D quad = new java.awt.geom.Path2D.Double();
+                quad.moveTo(cTlX, cTlY); quad.lineTo(cTlX + cFx, cTlY + cFy);
+                quad.lineTo(cTlX + cFx, cTlY + cFy + capeH); quad.lineTo(cTlX, cTlY + capeH);
+                quad.closePath();
+                g.setColor(shadeColor(cape.color, 0.9)); g.fill(quad);
+                g.setColor(shadeColor(cape.color, 1.25));
+                int dcx = (int) (cTlX + cFx / 2), dcy = (int) (cTlY + cFy / 2 + capeH * 0.85), r = (int) (W * 0.045);
+                g.fillPolygon(new int[]{dcx, dcx + r, dcx, dcx - r}, new int[]{dcy - r, dcy, dcy + r, dcy}, 4);
+            }
+        }
+        // 2) Torso: shoulders (20,16,8,4), front (20,20,8,12), side (28,20,4,12).
+        drawTex(g, shade(skin.getSubimage(20, 16, 8, 4), 1.0),
+                new AffineTransform(fx, fy, sx, sy, tlX, tlY));
+        drawTex(g, shade(skin.getSubimage(28, 20, 4, 12), 0.62),
+                new AffineTransform(sx, sy, 0, torsoH, tlX + fx, tlY + fy));
+        drawTex(g, shade(skin.getSubimage(20, 20, 8, 12), 0.82),
+                new AffineTransform(fx, fy, 0, torsoH, tlX, tlY));
+        // jacket/overlay layer when present in a 64x64 skin (20,36,8,12) + side (28,36,4,12)
+        drawTex(g, shade(skin.getSubimage(28, 36, 4, 12), 0.62),
+                new AffineTransform(sx, sy, 0, torsoH, tlX + fx, tlY + fy));
+        drawTex(g, shade(skin.getSubimage(20, 36, 8, 12), 0.82),
+                new AffineTransform(fx, fy, 0, torsoH, tlX, tlY));
+        // 3) Head cube on top, overlapping the neck line.
+        int hs = (int) (W * 0.52);
+        g.drawImage(headCube(skin, hs), (int) (cx - hs / 2.0), (int) (H * 0.02), null);
+        g.dispose();
+        return out;
+    }
+    private static void drawTex(Graphics2D g, BufferedImage tex, AffineTransform unit) {
+        AffineTransform t = new AffineTransform(unit);
+        t.scale(1.0 / tex.getWidth(), 1.0 / tex.getHeight());
+        g.drawImage(tex, t, null);
+    }
+    private static Color shadeColor(Color c, double f) {
+        return new Color(Math.min(255, (int) (c.getRed() * f)), Math.min(255, (int) (c.getGreen() * f)), Math.min(255, (int) (c.getBlue() * f)));
     }
 
     /** Built-in Steve-style skin (only head regions are used by the card).
@@ -193,6 +297,9 @@ public final class SkinTextures {
         // body: teal shirt (20,20,8,12), arms skin/shirt, legs blue-violet
         Color shirt = new Color(0x00A8A8), legs = new Color(0x4040C8);
         fill(img, 20, 20, 8, 12, shirt); fill(img, 20, 36, 8, 12, shirt);
+        fill(img, 20, 16, 8, 4, shirt);                       // torso top (shoulders)
+        fill(img, 16, 20, 4, 12, new Color(0x008C8C));        // torso right side
+        fill(img, 28, 20, 4, 12, new Color(0x007A7A));        // torso left side
         fill(img, 4, 20, 4, 12, shirt); fill(img, 4, 32, 4, 4, skin);
         fill(img, 32, 20, 4, 12, shirt); fill(img, 32, 32, 4, 4, skin);
         fill(img, 4, 52, 4, 12, legs); fill(img, 20, 52, 8, 12, legs);

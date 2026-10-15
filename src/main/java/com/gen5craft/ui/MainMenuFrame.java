@@ -45,6 +45,10 @@ public final class MainMenuFrame extends JFrame {
     private JButton bLang, bMulti, bSingle, bSettings, bExit;
     private JLabel versionLabel;
     private boolean multiBuilt, singleBuilt, settingsBuilt, langBuilt;
+    // Game-data download state (auto-starts on first run when data is missing).
+    private JProgressBar dataBar;
+    private JLabel dataStatus;
+    private volatile boolean dataDownloadRunning;
 
     public MainMenuFrame(Settings settings, Path settingsFile, Path gameDir) {
         super("Gen5Craft");
@@ -102,7 +106,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 1.5.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 1.6.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -171,6 +175,8 @@ public final class MainMenuFrame extends JFrame {
         p.add(new JScrollPane(list), BorderLayout.CENTER);
         JPanel row = new JPanel(new FlowLayout(FlowLayout.RIGHT)); row.setOpaque(false);
         final JProgressBar bar = new JProgressBar(0, 100); bar.setStringPainted(true); bar.setVisible(false);
+        dataBar = bar;
+        dataStatus = white("");
         JButton create = new JButton(i18n.t("newWorld"));
         create.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -184,7 +190,7 @@ public final class MainMenuFrame extends JFrame {
         });
         JButton download = new JButton(i18n.t("downloadData"));
         download.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) { startDownload(bar); }
+            public void actionPerformed(ActionEvent e) { startDataDownload(); }
         });
         JButton playWorld = new JButton("Play World (local session)");
         playWorld.addActionListener(new ActionListener() {
@@ -201,8 +207,19 @@ public final class MainMenuFrame extends JFrame {
         });
         row.add(create); row.add(download); row.add(preview3d);
         JPanel south = new JPanel(new BorderLayout()); south.setOpaque(false);
-        south.add(row, BorderLayout.NORTH); south.add(bar, BorderLayout.SOUTH);
+        south.add(row, BorderLayout.NORTH);
+        JPanel dlBox = new JPanel(new BorderLayout()); dlBox.setOpaque(false);
+        dlBox.add(dataStatus, BorderLayout.NORTH); dlBox.add(bar, BorderLayout.SOUTH);
+        south.add(dlBox, BorderLayout.SOUTH);
         p.add(south, BorderLayout.SOUTH);
+        // First run: fetch the official game data automatically so the user
+        // never has to hunt for the download button before testing.
+        if (GameDownloader.isDataReady(gameDir, Gen5Versions.latest())) {
+            dataStatus.setText("Game data " + Gen5Versions.latest() + ": ready.");
+        } else {
+            dataStatus.setText("Game data " + Gen5Versions.latest() + " is missing - downloading automatically...");
+            SwingUtilities.invokeLater(new Runnable() { public void run() { startDataDownload(); } });
+        }
         return p;
     }
     /** Username from the launcher's local profile (profile.json), if any. */
@@ -229,8 +246,18 @@ public final class MainMenuFrame extends JFrame {
         } catch (Exception ignored) {}
         if (model.isEmpty()) model.addElement(i18n.t("worldsEmpty"));
     }
-    private void startDownload(final JProgressBar bar) {
+    /** Download the official game data (auto-started on first run; the
+     *  Singleplayer download button retries it manually after a failure). */
+    private void startDataDownload() {
+        if (dataDownloadRunning || dataBar == null) return;
+        if (GameDownloader.isDataReady(gameDir, Gen5Versions.latest())) {
+            dataStatus.setText("Game data " + Gen5Versions.latest() + ": ready.");
+            return;
+        }
+        dataDownloadRunning = true;
+        final JProgressBar bar = dataBar;
         bar.setVisible(true); bar.setValue(0); bar.setString("...");
+        dataStatus.setText("Downloading official " + Gen5Versions.latest() + " game data from Mojang (client jar, libraries, asset index)...");
         SwingWorker<Void, String> w = new SwingWorker<Void, String>() {
             protected Void doInBackground() throws Exception {
                 GameDownloader dl = new GameDownloader();
@@ -243,8 +270,15 @@ public final class MainMenuFrame extends JFrame {
             }
             protected void process(List<String> chunks) { bar.setString(chunks.get(chunks.size() - 1)); }
             protected void done() {
-                try { get(); bar.setValue(100); bar.setString("OK - " + Gen5Versions.latest()); }
-                catch (Exception ex) { bar.setString("Error"); showError(ex); }
+                dataDownloadRunning = false;
+                try {
+                    get(); bar.setValue(100); bar.setString("OK - " + Gen5Versions.latest());
+                    dataStatus.setText("Game data " + Gen5Versions.latest() + ": ready. You can create a world or join a server now.");
+                } catch (Exception ex) {
+                    bar.setString("Error");
+                    dataStatus.setText("Game data download failed - check your connection, then press the download button to retry.");
+                    showError(ex);
+                }
             }
         };
         w.addPropertyChangeListener(new java.beans.PropertyChangeListener() {
