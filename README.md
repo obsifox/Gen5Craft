@@ -54,5 +54,13 @@ downloaded from Mojang's official manifest at runtime by the user.
 Weights: Phase 1 = 10, Ping 2.1 = 5, Launcher = 10, Data 2.2 = 10,
 World model 2.3 = 10, 3D renderer Phase 3 = 25, Play protocol Phase 4 = 25,
 Hardening Phase 5 = 5 (total 100). Roadmap completed at **v1.0.0 (100%)**. Install: see `docs/INSTALL.md`.
+
+Gameplay roadmap (Roadmap 2, 20% per phase): Phase 6 interactive local play
+session shipped in **v1.1.0**; Phase 7 live Gen-5 chunk-data decoding shipped
+in **v1.2.0** — after an offline login reaches Play, incoming Level Chunk
+With Light packets are fully decoded (paletted block-state containers,
+heightmaps, block entities, light data) and the last chunk is opened in the
+3D session with its real terrain. Gameplay progress: **40%**; next is
+Phase 8 (player physics, entities, inventory). See `docs/ROADMAP2.md`.
 Hardening & performance notes: `docs/SECURITY_AND_PERFORMANCE.md`.
 See `docs/PROGRESS.md` (regenerated every release).

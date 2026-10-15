@@ -99,7 +99,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 1.1.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 1.2.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -183,7 +183,7 @@ public final class MainMenuFrame extends JFrame {
         download.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) { startDownload(bar); }
         });
-        JButton playWorld = new JButton("Play World (Phase 6)");
+        JButton playWorld = new JButton("Play World (local session)");
         playWorld.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String sel = list.getSelectedValue();
@@ -292,6 +292,9 @@ public final class MainMenuFrame extends JFrame {
                         try {
                             LoginSession.Result r = get();
                             out.setText(out.getText() + "\n== " + r.detail);
+                            // Phase 7: show the last chunk decoded from this
+                            // server in the 3D session, straight from the wire.
+                            if (r.lastChunk != null) openChunkSession(r.lastChunk, protocol);
                         } catch (Exception ex) {
                             out.setText(out.getText() + "\nLogin failed: " + ex);
                         }
@@ -407,10 +410,23 @@ public final class MainMenuFrame extends JFrame {
     // into a reused off-screen buffer; FPS is capped and the PERFORMANCE
     // profile is fully static, so weak systems never spin.
     private void openRendererPreview(final String worldName) {
-        final JDialog dlg = new JDialog(this, "Gen5Craft - Play Session: " + worldName, false);
+        showRendererSession("Gen5Craft - Play Session: " + worldName, new SoftwareRenderer(),
+                "World: " + worldName + " [" + Gen5Versions.latest() + "]");
+    }
+
+    // Phase 7: a chunk decoded live from a server, rendered from its real
+    // block-state data (26.3 table when the protocol is pinned to it).
+    private void openChunkSession(final com.gen5craft.core.ChunkColumn chunk, final int protocol) {
+        com.gen5craft.core.BlockStateTable table = com.gen5craft.core.BlockStateTable.forProtocol(protocol);
+        showRendererSession("Gen5Craft - Server Chunk (" + chunk.chunkX + ", " + chunk.chunkZ + ")",
+                new SoftwareRenderer(chunk, table),
+                "Server chunk (" + chunk.chunkX + ", " + chunk.chunkZ + ") | " + chunk.summary());
+    }
+
+    private void showRendererSession(final String title, final SoftwareRenderer renderer, final String hudTitle) {
+        final JDialog dlg = new JDialog(this, title, false);
         dlg.setSize(900, 620);
         dlg.setLocationRelativeTo(this);
-        final SoftwareRenderer renderer = new SoftwareRenderer();
         final Settings.Quality q = settings.effectiveQuality();
         final PerfProfile perf = PerfProfile.from(settings);
         final int scalePct = perf.effectiveScale(settings);
@@ -425,7 +441,7 @@ public final class MainMenuFrame extends JFrame {
                 renderer.render(buf, camera.yaw, camera.zoom);
                 g.drawImage(buf, 0, 0, getWidth(), getHeight(), null);
                 g.setColor(new Color(255, 255, 255, 190));
-                g.drawString("World: " + worldName + " [" + Gen5Versions.latest() + "] | GPU: " + settings.gpuMode + " | Quality: " + q + " | Scale: " + scalePct + "%", 12, 20);
+                g.drawString(hudTitle + " | GPU: " + settings.gpuMode + " | Quality: " + q + " | Scale: " + scalePct + "%", 12, 20);
                 g.drawString("Controls: A/D or drag = rotate, W/S or wheel = zoom", 12, 38);
             }
         };

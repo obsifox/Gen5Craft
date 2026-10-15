@@ -28,9 +28,9 @@ public final class Gen5Versions {
         add("1.21.8", 772, false); add("1.21.9", 773, false);
         add("1.21.10", 773, false); add("1.21.11", 774, false);
         // 26.1-26.3: verified present in the official Mojang manifest (26.3 is the
-        // latest release, 2026-09-15). Protocol numbers are filled from downloaded
-        // data at runtime; -1 means "Gen 5, protocol not yet pinned in this table".
-        add("26.1", -1, true); add("26.2", -1, true); add("26.3", -1, true);
+        // latest release, 2026-09-15) with protocol versions 775/776/777 pinned
+        // from the official server-jar reports (Phase 7).
+        add("26.1", 775, true); add("26.2", 776, true); add("26.3", 777, true);
     }
     private static void add(String id, int p, boolean a) { TABLE.add(new Entry(id, p, a)); }
 

@@ -1,5 +1,7 @@
 package com.gen5craft.net;
 
+import com.gen5craft.core.ChunkColumn;
+import com.gen5craft.core.ChunkDataDecoder;
 import com.gen5craft.core.VarInt;
 
 import java.io.ByteArrayOutputStream;
@@ -16,8 +18,10 @@ import java.util.UUID;
  *  Flow: Handshake(next=login) -> Login Start -> [Set Compression] ->
  *  Login Success -> Login Acknowledged -> Configuration (Client Information,
  *  registry/tag packets are read and logged; Select Known Packs is answered;
- *  Finish Configuration is acknowledged) -> Play state entered and the first
- *  play packets are read and logged, then the socket closes politely.
+ *  Finish Configuration is acknowledged) -> Play state entered. In Play, the
+ *  session decodes live chunk data (Phase 7): Clientbound Level Chunk With
+ *  Light packets become ChunkColumns for the renderer, chunk batches are
+ *  acknowledged, and keep-alives are echoed, all inside a bounded window.
  *
  *  Boundary: if the server asks for encryption (online-mode), the session
  *  STOPS and reports that Microsoft/Mojang account authentication is required
@@ -32,6 +36,10 @@ public final class LoginSession {
         public boolean disconnected;
         public String detail = "";
         public int firstPlayPacketId = -1;
+        // Phase 7: live chunk decoding results from the play stream.
+        public int chunksDecoded;
+        public long lastChunkNonAir;
+        public ChunkColumn lastChunk;
     }
 
     public static UUID offlineUuid(String username) throws Exception {
@@ -140,18 +148,46 @@ public final class LoginSession {
                     PacketIO.writePacket(out, 0x03, new byte[0], threshold[0]); // Acknowledge Finish Configuration
                     result.reachedPlay = true;
                     log(listener, "Configuration finished -> PLAY state entered.");
-                    // Read the first play packets briefly and log them.
-                    socket.setSoTimeout(3000);
+                    // Phase 7: process the play stream for a bounded window.
+                    // Chunk packets are decoded into ChunkColumns (the last
+                    // one is kept for the renderer); chunk batches are
+                    // acknowledged so the server keeps sending; keep-alives
+                    // are echoed so we are not timed out mid-stream.
+                    socket.setSoTimeout(4000);
+                    long deadline = System.currentTimeMillis() + 12000;
+                    int playGuard = 0;
                     try {
-                        for (int i = 0; i < 5; i++) {
+                        while (System.currentTimeMillis() < deadline && playGuard++ < 600) {
                             PacketIO.Packet play = PacketIO.readPacket(in, threshold[0]);
                             if (result.firstPlayPacketId < 0) result.firstPlayPacketId = play.id;
-                            log(listener, "Play packet id=0x" + Integer.toHexString(play.id) + " (" + play.payload.length + " bytes)");
+                            if (ChunkDataDecoder.isChunkPacket(protocol, play.id)) {
+                                try {
+                                    ChunkColumn col = ChunkDataDecoder.decode(play.payload, protocol);
+                                    result.chunksDecoded++;
+                                    result.lastChunk = col;
+                                    result.lastChunkNonAir = col.nonAirBlocks;
+                                    log(listener, "Decoded " + col.summary());
+                                } catch (Exception ex) {
+                                    log(listener, "Chunk packet (0x" + Integer.toHexString(play.id) + ") failed to decode: " + ex.getMessage());
+                                }
+                            } else if (play.id == ChunkDataDecoder.chunkBatchFinishedId(protocol)) {
+                                ByteArrayOutputStream f = new ByteArrayOutputStream();
+                                int bits = Float.floatToIntBits(20.0f); // desired chunks per batch
+                                f.write((bits >> 24) & 0xFF); f.write((bits >> 16) & 0xFF); f.write((bits >> 8) & 0xFF); f.write(bits & 0xFF);
+                                PacketIO.writePacket(out, ChunkDataDecoder.chunkBatchReceivedId(protocol), f.toByteArray(), threshold[0]);
+                                log(listener, "Chunk batch finished; acknowledged (more chunks may follow).");
+                            } else if (play.id == ChunkDataDecoder.keepAliveClientboundId(protocol)) {
+                                PacketIO.writePacket(out, ChunkDataDecoder.keepAliveServerboundId(protocol), play.payload, threshold[0]);
+                            } else {
+                                log(listener, "Play packet id=0x" + Integer.toHexString(play.id) + " (" + play.payload.length + " bytes)");
+                            }
                         }
                     } catch (Exception timeout) {
                         log(listener, "Play stream pause/timeout after entry (session goal reached).");
                     }
-                    result.detail = "Reached Play state. First play packet id=0x" + Integer.toHexString(result.firstPlayPacketId) + ". Continuous chunk/gameplay processing builds on this session.";
+                    result.detail = result.chunksDecoded > 0
+                            ? "Reached Play state and decoded " + result.chunksDecoded + " chunk(s) from the server. Last: " + result.lastChunk.summary() + "."
+                            : "Reached Play state. First play packet id=0x" + Integer.toHexString(result.firstPlayPacketId) + ". No chunk packet was decoded inside the listen window.";
                     return result;
                 } else if (pkt.id == 0x0D || pkt.id == 0x0E) { // Select Known Packs (id varies slightly by minor version)
                     PacketIO.writePacket(out, 0x07, buildKnownPacks(serverVersionForPacks), threshold[0]);

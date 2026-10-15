@@ -29,12 +29,17 @@ public final class SoftwareRenderer {
 
     private static final Color SKY_TOP = new Color(38, 74, 128);
     private static final Color SKY_BOTTOM = new Color(196, 132, 74);
+    // Block categories: 0 grass, 1 dirt, 2 stone, 3 sand, 4 water (Phase 3 set),
+    // plus 5 leaves, 6 wood, 7 snow, 8 lava used by decoded chunk data (Phase 7).
     private static final Color[] TOP = {
-        new Color(96, 176, 72), new Color(134, 96, 67), new Color(128, 128, 128), new Color(219, 207, 163), new Color(52, 95, 218)};
+        new Color(96, 176, 72), new Color(134, 96, 67), new Color(128, 128, 128), new Color(219, 207, 163), new Color(52, 95, 218),
+        new Color(52, 140, 49), new Color(150, 112, 72), new Color(240, 248, 255), new Color(240, 110, 30)};
     private static final Color[] LEFT = {
-        new Color(74, 138, 56), new Color(104, 74, 52), new Color(100, 100, 100), new Color(188, 176, 138), new Color(40, 76, 186)};
+        new Color(74, 138, 56), new Color(104, 74, 52), new Color(100, 100, 100), new Color(188, 176, 138), new Color(40, 76, 186),
+        new Color(40, 110, 38), new Color(118, 88, 56), new Color(210, 225, 235), new Color(205, 85, 20)};
     private static final Color[] RIGHT = {
-        new Color(58, 108, 44), new Color(82, 58, 42), new Color(78, 78, 78), new Color(160, 150, 118), new Color(30, 60, 160)};
+        new Color(58, 108, 44), new Color(82, 58, 42), new Color(78, 78, 78), new Color(160, 150, 118), new Color(30, 60, 160),
+        new Color(32, 88, 30), new Color(94, 70, 44), new Color(185, 200, 215), new Color(170, 65, 15)};
 
     public SoftwareRenderer() {
         for (int x = 0; x < SIZE; x++) {
@@ -45,6 +50,25 @@ public final class SoftwareRenderer {
                 if (h > 9) h = 9;
                 height[x][z] = h;
                 block[x][z] = h <= 3 ? 4 : (h == 4 ? 3 : (h <= 6 ? 0 : (h <= 7 ? 1 : 2)));
+            }
+        }
+    }
+
+    /** Phase 7: build the scene from a decoded server chunk. Column height is
+     *  the top block's section (1..9 from the bottom of the world), and the
+     *  block category comes from the version's block-state table when one is
+     *  pinned (26.3), else from the same elevation heuristic as Phase 3. */
+    public SoftwareRenderer(com.gen5craft.core.ChunkColumn chunk, com.gen5craft.core.BlockStateTable table) {
+        for (int x = 0; x < SIZE; x++) {
+            for (int z = 0; z < SIZE; z++) {
+                int top = chunk.topStateAt(x, z);
+                if (top < 0) { height[x][z] = 1; block[x][z] = 4; continue; }
+                int h = chunk.topSectionAt(x, z) + 1;
+                if (h < 1) h = 1; if (h > 9) h = 9;
+                height[x][z] = h;
+                int cat = table != null ? table.category(top) : -1;
+                if (cat >= 0) block[x][z] = cat;
+                else block[x][z] = h <= 2 ? 4 : (h == 3 ? 3 : (h <= 5 ? 0 : (h <= 7 ? 1 : 2)));
             }
         }
     }
@@ -125,6 +149,13 @@ public final class SoftwareRenderer {
     public static BufferedImage renderToImage(int w, int h, double angle, double zoom) {
         BufferedImage img = new BufferedImage(Math.max(16, w), Math.max(16, h), BufferedImage.TYPE_INT_RGB);
         new SoftwareRenderer().render(img, angle, zoom);
+        return img;
+    }
+    /** Render a decoded server chunk (Phase 7). */
+    public static BufferedImage renderToImage(int w, int h, double angle, double zoom,
+                                              com.gen5craft.core.ChunkColumn chunk, com.gen5craft.core.BlockStateTable table) {
+        BufferedImage img = new BufferedImage(Math.max(16, w), Math.max(16, h), BufferedImage.TYPE_INT_RGB);
+        new SoftwareRenderer(chunk, table).render(img, angle, zoom);
         return img;
     }
 }
