@@ -24,6 +24,13 @@ download in the client (progress + retry), one-click install-then-play in
 the launcher, custom cape PNG import with a 3D character preview
 (head + torso + cape) on the profile card.
 
+Post-roadmap maintenance: v1.7.0 - fixed a launcher startup crash from
+v1.6.0 (missing cape-card widget threw during window creation; the card is
+restored and null-safe, and startup failures now show a dialog and write a
+*-startup.log), modernized both UIs (rounded hover buttons, Segoe UI,
+brand header), and embedded the Gen5Craft icon inside both jars and the
+Windows executables (installer shortcut uses it too).
+
 Remaining on the gameplay roadmap: 0% — both roadmaps complete.
 Honest boundaries that remain true after v1.5.0: online-mode servers still
 require real Microsoft authentication, which the local profile does not

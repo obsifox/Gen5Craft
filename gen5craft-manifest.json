@@ -1,6 +1,6 @@
 {
   "name": "Gen5Craft",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "platform": "windows",
   "mainClass": "com.gen5craft.Main",
   "game": {

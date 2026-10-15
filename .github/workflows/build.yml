@@ -26,6 +26,7 @@ jobs:
           New-Item -ItemType Directory -Force out | Out-Null
           $src = Get-ChildItem -Recurse src/main/java, launcher/src/main/java -Filter *.java | ForEach-Object { $_.FullName }
           javac --release 17 -encoding UTF-8 -d out $src
+          Copy-Item assets/icon.png out/gen5craft-icon.png
           $test = Get-ChildItem -Recurse src/test/java -Filter *.java | ForEach-Object { $_.FullName }
           javac --release 17 -encoding UTF-8 -cp out -d out-test $test
 
@@ -40,15 +41,15 @@ jobs:
           @"
           Main-Class: com.gen5craft.Main
           Implementation-Title: Gen5Craft
-          Implementation-Version: 1.6.0
+          Implementation-Version: 1.7.0
           "@ | Set-Content -Encoding ascii manifest.mf
-          jar cfm dist/Gen5Craft.jar manifest.mf -C out com/gen5craft/Main.class -C out com/gen5craft/core -C out com/gen5craft/ui -C out com/gen5craft/render -C out com/gen5craft/net
+          jar cfm dist/Gen5Craft.jar manifest.mf -C out com/gen5craft/Main.class -C out com/gen5craft/core -C out com/gen5craft/ui -C out com/gen5craft/render -C out com/gen5craft/net -C out gen5craft-icon.png
           @"
           Main-Class: com.gen5craft.launcher.LauncherMain
           Implementation-Title: Gen5Craft Launcher
-          Implementation-Version: 1.6.0
+          Implementation-Version: 1.7.0
           "@ | Set-Content -Encoding ascii launcher-manifest.mf
-          jar cfm dist/Gen5Craft-Launcher.jar launcher-manifest.mf -C out com/gen5craft/launcher
+          jar cfm dist/Gen5Craft-Launcher.jar launcher-manifest.mf -C out com/gen5craft/launcher -C out gen5craft-icon.png
 
       - name: Validate jar layout (packaging gate)
         shell: pwsh
@@ -78,9 +79,9 @@ jobs:
           Copy-Item dist/Gen5Craft.jar in-client/
           Copy-Item dist/Gen5Craft-Launcher.jar in-launcher/
           Copy-Item installer/Install-Gen5Craft.ps1 dist/
-          jpackage --type app-image --name Gen5Craft --dest dist --input in-client --main-jar Gen5Craft.jar --main-class com.gen5craft.Main --java-options "-Xmx2G"
+          jpackage --type app-image --name Gen5Craft --dest dist --input in-client --main-jar Gen5Craft.jar --main-class com.gen5craft.Main --icon installer/gen5craft.ico --java-options "-Xmx2G"
           Compress-Archive -Path dist/Gen5Craft -DestinationPath dist/Gen5Craft-windows.zip -Force
-          jpackage --type app-image --name Gen5CraftLauncher --dest dist --input in-launcher --main-jar Gen5Craft-Launcher.jar --main-class com.gen5craft.launcher.LauncherMain --java-options "-Xmx512M"
+          jpackage --type app-image --name Gen5CraftLauncher --dest dist --input in-launcher --main-jar Gen5Craft-Launcher.jar --main-class com.gen5craft.launcher.LauncherMain --icon installer/gen5craft.ico --java-options "-Xmx512M"
           Compress-Archive -Path dist/Gen5CraftLauncher -DestinationPath dist/Gen5Craft-Launcher-windows.zip -Force
 
       - name: Download manifest for the client jar
@@ -92,7 +93,7 @@ jobs:
           $launcherZipHash = (Get-FileHash dist/Gen5Craft-Launcher-windows.zip -Algorithm SHA256).Hash.ToLower()
           $installerHash = (Get-FileHash dist/Install-Gen5Craft.ps1 -Algorithm SHA256).Hash.ToLower()
           $manifest = [ordered]@{
-            name = "Gen5Craft"; version = "1.6.0"; platform = "windows";
+            name = "Gen5Craft"; version = "1.7.0"; platform = "windows";
             mainClass = "com.gen5craft.Main";
             game = [ordered]@{ generation = 5; range = "1.20.5-26.3"; latestData = "26.3";
               mojangManifest = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" }
@@ -112,35 +113,37 @@ jobs:
       - name: Publish downloadable release assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.6.0
-          name: Gen5Craft 1.6.0
+          tag_name: v1.7.0
+          name: Gen5Craft 1.7.0
           draft: false
           body: |
-            **Gen5Craft 1.6.0** - Windows-first Java 25 client & launcher for Generation 5 of
+            **Gen5Craft 1.7.0** - Windows-first Java 25 client & launcher for Generation 5 of
             Minecraft Java Edition (1.20.5 - 26.3, protocol 766+).
 
-            What is new in 1.6.0:
-            - **Automatic game-data download**: on first start the client now downloads the official
-              26.3 game data (client jar, 114 libraries, asset index) from Mojang's manifest by
-              itself, with a visible progress bar and status line - no need to find a button first.
-              The launcher's Play button also installs the client automatically when missing.
-            - **Custom cape images**: in the launcher profile you can now import a cape PNG
-              (a Minecraft cape texture 64x32, or any image), and the profile card shows a
-              **3D character preview** (head + torso from your skin, cape hanging behind,
-              textured with your cape image or a built-in cape color).
+            What is new in 1.7.0:
+            - **Startup fix**: v1.6.0's launcher could fail to open (a profile-card widget was
+              missing after the cape-import change, crashing window creation). The card is
+              restored and null-safe, and any future startup failure now shows a dialog and
+              writes `launcher-startup.log` / `gen5craft-startup.log` instead of dying silently.
+            - **Modern, professional UI**: rounded hover buttons, Segoe UI typography, darker
+              glass surfaces and a proper brand header in the launcher; modernized menu
+              buttons in the client.
+            - **Own icon, built in**: a Gen5Craft icon (Steve-head cube) is embedded inside
+              both jars (window/taskbar icon) and inside the Windows executables.
 
-            Also included (from 1.4.0/1.5.0): local launcher profile (name / skin / cape, head
-            rendered from the game's default Steve or a custom skin PNG), live Gen-5 chunk
-            decoding in the 3D session, AABB player physics, entity tracking, inventory + hotbar.
+            Also included: automatic first-run download of the official 26.3 game data,
+            one-click install-then-play in the launcher, local launcher profile (name / skin /
+            custom cape image) with a 3D character preview, live Gen-5 chunk decoding, AABB
+            player physics, entity tracking, inventory + hotbar.
 
             Downloads: `Gen5Craft-Launcher-windows.zip` (recommended), `Gen5Craft-windows.zip`,
-            standalone jars (need Java 25), or `Install-Gen5Craft.ps1`. SHA-256 hashes for every
-            file are in `gen5craft-manifest.json`.
+            standalone jars (need Java 25), or `Install-Gen5Craft.ps1`. SHA-256 hashes for
+            every file are in `gen5craft-manifest.json`.
 
-            Unofficial fan project; not affiliated with Mojang or Microsoft. The local profile is
-            a local account, not a Microsoft/Mojang login; online-mode servers still require real
-            Microsoft authentication. Game data is downloaded from Mojang's official manifest
-            at runtime by the user.
+            Unofficial fan project; not affiliated with Mojang or Microsoft. The local profile
+            is a local account, not a Microsoft/Mojang login; online-mode servers still require
+            real Microsoft authentication. Game data is downloaded from Mojang's official
+            manifest at runtime by the user.
           files: |
             dist/Gen5Craft.jar
             dist/Gen5Craft-windows.zip

@@ -79,6 +79,8 @@ Post-roadmap maintenance: **v1.6.0** makes the first-run flow automatic -
 the client downloads the official game data by itself on first start
 (with progress), the launcher's Play installs the client when missing,
 and capes can be imported as PNG images and are shown on a 3D character
-preview (head + torso + cape) on the profile card.
+preview (head + torso + cape) on the profile card. **v1.7.0** fixes a
+launcher startup crash, modernizes both UIs, and embeds the Gen5Craft
+icon in the jars and Windows executables.
 Hardening & performance notes: `docs/SECURITY_AND_PERFORMANCE.md`.
 See `docs/PROGRESS.md` (regenerated every release).

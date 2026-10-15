@@ -328,6 +328,11 @@ public final class TestMain {
         java.awt.image.BufferedImage bustNone = SkinTextures.characterPreview(steve, null, Profile.Cape.NONE, 170, 205);
         check(bustNone.getRGB(85, 160) == 0, "no cape -> nothing hangs below the torso");
 
+        // ---- v1.7.0: embedded app icon + startup hardening ----
+        check(com.gen5craft.launcher.LauncherMain.class.getResourceAsStream("/gen5craft-icon.png") != null,
+                "Gen5Craft icon is embedded inside the jars");
+        check(com.gen5craft.launcher.LauncherMain.VERSION.equals("1.7.0"), "launcher version constant is 1.7.0");
+
         System.out.println("ALL TESTS PASSED");
     }
 

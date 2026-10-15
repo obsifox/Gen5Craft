@@ -54,6 +54,7 @@ public final class MainMenuFrame extends JFrame {
         super("Gen5Craft");
         this.settings = settings; this.settingsFile = settingsFile; this.gameDir = gameDir;
         i18n.setLanguage(settings.language);
+        setIconImage(loadIcon());
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(960, 540));
         setSize(1280, 720);
@@ -106,7 +107,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 1.6.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 1.7.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -119,15 +120,45 @@ public final class MainMenuFrame extends JFrame {
         c.setComponentOrientation(i18n.rtl() ? ComponentOrientation.RIGHT_TO_LEFT : ComponentOrientation.LEFT_TO_RIGHT);
     }
 
+    /** The Gen5Craft icon, embedded in the jar at /gen5craft-icon.png. */
+    static java.awt.Image loadIcon() {
+        try {
+            java.io.InputStream in = MainMenuFrame.class.getResourceAsStream("/gen5craft-icon.png");
+            if (in != null) { BufferedImage img = javax.imageio.ImageIO.read(in); in.close(); if (img != null) return img; }
+        } catch (Exception ignored) {}
+        BufferedImage img = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setColor(new Color(23, 34, 58)); g.fillRoundRect(0, 0, 63, 63, 14, 14);
+        g.setColor(new Color(84, 180, 84)); g.fillRect(0, 52, 64, 12);
+        g.dispose();
+        return img;
+    }
+
     private JButton headerButton(final String key, final String tab) {
-        final JButton b = new JButton(i18n.t(key));
-        b.setFont(new Font("SansSerif", Font.BOLD, 15));
+        final JButton b = new JButton(i18n.t(key)) {
+            private boolean hover;
+            {
+                addMouseListener(new java.awt.event.MouseAdapter() {
+                    public void mouseEntered(java.awt.event.MouseEvent e) { hover = true; repaint(); }
+                    public void mouseExited(java.awt.event.MouseEvent e) { hover = false; repaint(); }
+                });
+            }
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(hover ? new Color(70, 160, 80, 190) : new Color(10, 16, 24, 150));
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.setColor(new Color(255, 255, 255, 90));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.dispose(); super.paintComponent(g);
+            }
+        };
+        b.setFont(new Font("Segoe UI", Font.BOLD, 15));
         b.setForeground(Color.WHITE);
-        b.setBackground(new Color(10, 16, 24, 110));
+        b.setContentAreaFilled(false);
         b.setFocusPainted(false);
-        b.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(255, 255, 255, 60)),
-                new EmptyBorder(8, 18, 8, 18)));
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.setBorder(new EmptyBorder(8, 18, 8, 18));
         b.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 if ("exit".equals(tab)) { confirmExit(); return; }

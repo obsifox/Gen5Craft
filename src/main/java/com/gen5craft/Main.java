@@ -28,7 +28,21 @@ public final class Main {
         applyPipeline(settings.gpuMode);
         final Settings s = settings;
         SwingUtilities.invokeLater(new Runnable() {
-            public void run() { new MainMenuFrame(s, settingsFile, dir).setVisible(true); }
+            public void run() {
+                try { new MainMenuFrame(s, settingsFile, dir).setVisible(true); }
+                catch (Throwable ex) {
+                    try {
+                        java.nio.file.Files.createDirectories(dir);
+                        java.io.StringWriter sw = new java.io.StringWriter();
+                        ex.printStackTrace(new java.io.PrintWriter(sw));
+                        java.nio.file.Files.write(dir.resolve("gen5craft-startup.log"),
+                                sw.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    } catch (Exception ignored) {}
+                    javax.swing.JOptionPane.showMessageDialog(null,
+                            "Gen5Craft failed to start:\n" + ex + "\n\nDetails were written to gen5craft-startup.log in the Gen5Craft folder.",
+                            "Gen5Craft", javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
+            }
         });
     }
 

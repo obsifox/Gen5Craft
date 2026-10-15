@@ -23,6 +23,7 @@ if (Test-Path $exe) {
     $shortcutPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Gen5Craft Launcher.lnk"
     $shortcut = $shell.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = $exe
+    $shortcut.IconLocation = "$exe,0"
     $shortcut.WorkingDirectory = $target
     $shortcut.Save()
     Write-Host "Gen5Craft Launcher installed to $target and a desktop shortcut was created."
