@@ -62,8 +62,15 @@ With Light packets are fully decoded (paletted block-state containers,
 heightmaps, block entities, light data) and the last chunk is opened in the
 3D session with its real terrain. Phase 8 shipped in **v1.3.0**: AABB player
 physics running on decoded chunks, live entity tracking (Add/Remove Entity),
-and an inventory model with a hotbar HUD. Gameplay progress: **60%**; next
-is Phase 9 (Microsoft online-mode authentication, an owner credential
-step). See `docs/ROADMAP2.md`.
+and an inventory model with a hotbar HUD. Phase 9 shipped in **v1.4.0** as a
+local launcher profile (owner-directed replacement for Microsoft auth): the
+launcher's profile card renders your head from the game's default Steve
+skin (taken from the downloaded official client jar, or from a custom skin
+PNG), and you can set your profile name, skin and a cosmetic cape there.
+The profile is a local account stored on your own PC (`profile.json`); its
+name is used as the offline-mode username, and its offline UUID is shown on
+the card. It is not a Microsoft/Mojang login. Gameplay progress: **80%**;
+next is Phase 10 (public release polish, owner decision). See
+`docs/ROADMAP2.md`.
 Hardening & performance notes: `docs/SECURITY_AND_PERFORMANCE.md`.
 See `docs/PROGRESS.md` (regenerated every release).

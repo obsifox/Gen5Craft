@@ -6,6 +6,8 @@ import com.gen5craft.core.ChunkDataDecoder;
 import com.gen5craft.core.EntityTracker;
 import com.gen5craft.core.Inventory;
 import com.gen5craft.core.PlayerPhysics;
+import com.gen5craft.launcher.Profile;
+import com.gen5craft.launcher.SkinTextures;
 import com.gen5craft.core.FeatureGate;
 import com.gen5craft.core.Gen5Versions;
 import com.gen5craft.core.DataSummary;
@@ -231,6 +233,62 @@ public final class TestMain {
         Inventory full = new Inventory();
         for (int i = 0; i < Inventory.SLOTS; i++) full.setSlot(i, i + 1, 64);
         check(full.add(999, 10) == 10, "full inventory returns leftover");
+
+        // ---- Phase 9 (revised): local profile, skin & cape on the launcher ----
+        check(Profile.sanitize("Steve_99") != null, "profile name valid");
+        check(Profile.sanitize("ab") == null, "profile name too short rejected");
+        check(Profile.sanitize("bad name") == null, "profile name with space rejected");
+        check(Profile.sanitize("waytoolongname12345") == null, "profile name too long rejected");
+        java.nio.file.Path profDir = java.nio.file.Files.createTempDirectory("gen5-profile");
+        Profile prof = new Profile();
+        prof.name = "Alex_7"; prof.cape = Profile.Cape.AZURE; prof.skinPath = "";
+        prof.save(profDir.resolve("profile.json"));
+        Profile loadedProf = Profile.load(profDir.resolve("profile.json"));
+        check(loadedProf.name.equals("Alex_7") && loadedProf.cape == Profile.Cape.AZURE, "profile JSON roundtrip");
+        check(loadedProf.offlineUuid().equals(LoginSession.offlineUuid("Alex_7")), "profile offline UUID matches client login");
+        check("Alex_7".equals(Profile.readName(profDir.resolve("profile.json"))), "profile name pre-fills client username");
+        check(Profile.Cape.byName("VIOLET") == Profile.Cape.VIOLET, "cape parsed by name");
+
+        java.awt.image.BufferedImage steve = SkinTextures.builtInSteve();
+        check(steve.getWidth() == 64 && steve.getHeight() == 64, "built-in Steve skin is 64x64");
+        java.awt.image.BufferedImage face = SkinTextures.headFace(steve);
+        java.util.Set<Integer> faceColors = new java.util.HashSet<Integer>();
+        for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) faceColors.add(face.getRGB(x, y));
+        check(faceColors.size() >= 4, "Steve head face has hair/skin/eyes (" + faceColors.size() + " colors)");
+        java.awt.image.BufferedImage cube = SkinTextures.headCube(steve, 96);
+        java.util.Set<Integer> cubeColors = new java.util.HashSet<Integer>();
+        for (int y = 0; y < cube.getHeight(); y++) for (int x = 0; x < cube.getWidth(); x++) cubeColors.add(cube.getRGB(x, y));
+        check(cube.getWidth() == 96 && cubeColors.size() > 5, "isometric Steve head renders (" + cubeColors.size() + " colors)");
+
+        // Custom skin file wins.
+        java.awt.image.BufferedImage custom = new java.awt.image.BufferedImage(64, 64, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        custom.setRGB(8, 8, 0xFFFF0000);
+        java.nio.file.Path skinFile = profDir.resolve("my-skin.png");
+        javax.imageio.ImageIO.write(custom, "png", skinFile.toFile());
+        Profile custProf = new Profile(); custProf.skinPath = skinFile.toString();
+        SkinTextures.Loaded custLoaded = SkinTextures.loadSkin(profDir, custProf);
+        check(custLoaded.source.contains("custom"), "custom skin file is used");
+        check(SkinTextures.headFace(custLoaded.skin).getRGB(0, 0) == 0xFFFF0000, "custom skin face pixel shows");
+
+        // Default Steve comes out of the downloaded official client jar.
+        java.nio.file.Path gameDir9 = java.nio.file.Files.createTempDirectory("gen5-game9");
+        java.nio.file.Path verDir = gameDir9.resolve("versions/26.3");
+        java.nio.file.Files.createDirectories(verDir);
+        java.awt.image.BufferedImage jarSteve = SkinTextures.builtInSteve();
+        jarSteve.setRGB(8, 8, 0xFF00FF00);
+        java.io.ByteArrayOutputStream pngBytes = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(jarSteve, "png", pngBytes);
+        java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(
+                java.nio.file.Files.newOutputStream(verDir.resolve("26.3.jar")));
+        zos.putNextEntry(new java.util.zip.ZipEntry("assets/minecraft/textures/entity/player/wide/Steve.png"));
+        zos.write(pngBytes.toByteArray()); zos.closeEntry(); zos.close();
+        SkinTextures.Loaded jarLoaded = SkinTextures.loadSkin(gameDir9, new Profile());
+        check(jarLoaded.source.contains("default Steve"), "Steve extracted from client jar (" + jarLoaded.source + ")");
+        check(SkinTextures.headFace(jarLoaded.skin).getRGB(0, 0) == 0xFF00FF00, "jar Steve face marker shows");
+
+        java.awt.image.BufferedImage capeImg = SkinTextures.capePreview(Profile.Cape.CRIMSON, 30, 40);
+        check(capeImg.getRGB(15, 4) == Profile.Cape.CRIMSON.color.getRGB(), "cape preview uses cape color");
+        check(SkinTextures.capePreview(Profile.Cape.NONE, 30, 40).getRGB(15, 20) == 0, "no-cape preview stays empty");
 
         System.out.println("ALL TESTS PASSED");
     }

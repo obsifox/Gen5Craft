@@ -26,10 +26,17 @@ public final class LauncherMain extends JFrame {
     private final Path installDir;
     private final Path clientJar;
     private final JTextField manifestUrl = new JTextField(
-        "https://github.com/obsifox/Gen5Craft/releases/download/v1.3.0/gen5craft-manifest.json");
+        "https://github.com/obsifox/Gen5Craft/releases/download/v1.4.0/gen5craft-manifest.json");
     private final JLabel status = new JLabel("Ready.");
     private final JProgressBar bar = new JProgressBar(0, 100);
     private final JLabel installed = new JLabel("Installed: -");
+    // Local profile (Phase 9 revised): name + skin + cape, shown on the profile card.
+    private Profile profile = new Profile();
+    private Path profileFile;
+    private JLabel headLabel, profileInfo, capeSwatch, skinPathLabel;
+    private JTextField profileNameField;
+    private JComboBox<String> skinCombo, capeCombo;
+    private String chosenSkinPath = "";
 
     public LauncherMain() {
         super("Gen5Craft Launcher");
@@ -37,12 +44,15 @@ public final class LauncherMain extends JFrame {
         installDir = (System.getProperty("os.name", "").toLowerCase().contains("win") && appData != null)
                 ? Paths.get(appData, "Gen5Craft") : Paths.get(System.getProperty("user.home"), ".gen5craft");
         clientJar = installDir.resolve("client/Gen5Craft.jar");
+        profileFile = installDir.resolve("profile.json");
+        profile = Profile.load(profileFile);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(820, 520));
-        setSize(940, 580);
+        setMinimumSize(new Dimension(860, 640));
+        setSize(980, 700);
         setLocationRelativeTo(null);
         buildUi();
         refreshInstalled();
+        refreshProfileCard();
     }
 
     private void buildUi() {
@@ -60,7 +70,7 @@ public final class LauncherMain extends JFrame {
         JLabel logo = new JLabel("MINECRAFT");
         logo.setFont(new Font("SansSerif", Font.BOLD, 24));
         logo.setForeground(new Color(255, 255, 255, 225));
-        JLabel title = new JLabel("Gen5Craft Launcher 1.3.0  |  Gen 5 (1.20.5 - 26.3)  |  Java 25 / Windows");
+        JLabel title = new JLabel("Gen5Craft Launcher 1.4.0  |  Gen 5 (1.20.5 - 26.3)  |  Java 25 / Windows");
         title.setForeground(new Color(220, 235, 250));
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false); top.setBorder(new EmptyBorder(14, 16, 6, 16));
@@ -81,6 +91,41 @@ public final class LauncherMain extends JFrame {
         JPanel center = new JPanel(new GridBagLayout()); center.setOpaque(false); center.add(glass);
         root.add(center, BorderLayout.CENTER);
 
+        // ---- Profile card: head (default Steve), name, skin & cape controls ----
+        JPanel profPanel = new JPanel(new BorderLayout(14, 6)); profPanel.setOpaque(false);
+        headLabel = new JLabel();
+        profPanel.add(headLabel, BorderLayout.WEST);
+        profileInfo = new JLabel();
+        profileInfo.setForeground(Color.WHITE);
+        profileInfo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        JPanel mid = new JPanel(new BorderLayout(4, 4)); mid.setOpaque(false);
+        JLabel profTitle = new JLabel("Local Profile (offline account)");
+        profTitle.setFont(new Font("SansSerif", Font.BOLD, 16)); profTitle.setForeground(Color.WHITE);
+        mid.add(profTitle, BorderLayout.NORTH);
+        mid.add(profileInfo, BorderLayout.CENTER);
+        profPanel.add(mid, BorderLayout.CENTER);
+
+        JPanel controls = new JPanel(new GridLayout(0, 1, 6, 6)); controls.setOpaque(false);
+        profileNameField = new JTextField(profile.name, 14);
+        skinCombo = new JComboBox<String>(new String[]{"Default Steve (from game data)", "Custom skin PNG..."});
+        JButton chooseSkin = new JButton("Choose skin PNG");
+        chooseSkin.addActionListener(e -> chooseSkinFile());
+        skinPathLabel = new JLabel("");
+        skinPathLabel.setForeground(new Color(200, 225, 255));
+        capeCombo = new JComboBox<String>();
+        for (Profile.Cape c : Profile.Cape.values()) capeCombo.addItem(c.label);
+        capeSwatch = new JLabel();
+        JButton saveProfile = new JButton("Save Profile");
+        saveProfile.setFont(new Font("SansSerif", Font.BOLD, 13));
+        saveProfile.addActionListener(e -> saveProfile());
+        controls.add(row("Profile name:", profileNameField));
+        controls.add(row("Skin:", skinCombo, chooseSkin));
+        controls.add(skinPathLabel);
+        controls.add(row("Cape:", capeCombo, capeSwatch));
+        controls.add(row("", saveProfile));
+        profPanel.add(controls, BorderLayout.EAST);
+        glass.add(profPanel, BorderLayout.NORTH);
+
         JPanel form = new JPanel(new GridLayout(0, 1, 10, 10)); form.setOpaque(false);
         JLabel m = new JLabel("Manifest URL (or keep the local gen5craft-manifest.json next to the launcher):");
         m.setForeground(Color.WHITE); form.add(m);
@@ -100,6 +145,55 @@ public final class LauncherMain extends JFrame {
         buttons.add(open); buttons.add(update); buttons.add(play);
         glass.add(buttons, BorderLayout.SOUTH);
     }
+    private JPanel row(String label, Component... comps) {
+        JPanel r = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2)); r.setOpaque(false);
+        JLabel l = new JLabel(label); l.setForeground(Color.WHITE); l.setPreferredSize(new Dimension(86, 22));
+        r.add(l);
+        for (Component c : comps) r.add(c);
+        return r;
+    }
+    private void chooseSkinFile() {
+        JFileChooser fc = new JFileChooser();
+        fc.setDialogTitle("Choose a 64x64 Minecraft skin PNG");
+        if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            chosenSkinPath = fc.getSelectedFile().getAbsolutePath();
+            skinCombo.setSelectedIndex(1);
+            skinPathLabel.setText(fc.getSelectedFile().getName());
+        }
+    }
+    private void saveProfile() {
+        String name = Profile.sanitize(profileNameField.getText());
+        if (name == null) { status.setText("Invalid profile name: use 3-16 letters, digits or underscore."); return; }
+        profile.name = name;
+        profile.skinPath = skinCombo.getSelectedIndex() == 1 ? chosenSkinPath : "";
+        if (skinCombo.getSelectedIndex() == 1 && profile.skinPath.isEmpty()) {
+            status.setText("Pick a skin PNG first, or switch back to Default Steve.");
+            return;
+        }
+        profile.cape = Profile.Cape.values()[capeCombo.getSelectedIndex()];
+        try {
+            profile.save(profileFile);
+            refreshProfileCard();
+            status.setText("Profile saved: " + profile.name + " (local account, stored on this PC only).");
+        } catch (Exception ex) { status.setText("Profile save failed: " + ex.getMessage()); }
+    }
+    private void refreshProfileCard() {
+        if (headLabel == null) return;
+        SkinTextures.Loaded loaded = SkinTextures.loadSkin(installDir, profile);
+        headLabel.setIcon(new ImageIcon(SkinTextures.headCube(loaded.skin, 104)));
+        String uuid = profile.offlineUuid().toString();
+        profileInfo.setText("<html><b><font size=+1>" + profile.name + "</font></b> &nbsp;(local account)<br>"
+                + "Offline UUID: " + uuid.substring(0, 8) + "..." + uuid.substring(uuid.length() - 4) + "<br>"
+                + "Skin: " + loaded.source + "<br>"
+                + "Cape: " + profile.cape.label + " (cosmetic, local only)</html>");
+        capeSwatch.setIcon(new ImageIcon(SkinTextures.capePreview(profile.cape, 30, 40)));
+        profileNameField.setText(profile.name);
+        skinCombo.setSelectedIndex(profile.skinPath == null || profile.skinPath.isEmpty() ? 0 : 1);
+        chosenSkinPath = profile.skinPath == null ? "" : profile.skinPath;
+        skinPathLabel.setText(chosenSkinPath.isEmpty() ? "" : Paths.get(chosenSkinPath).getFileName().toString());
+        capeCombo.setSelectedIndex(profile.cape.ordinal());
+    }
+
     private JButton big(String t) {
         JButton b = new JButton(t);
         b.setFont(new Font("SansSerif", Font.BOLD, 15)); b.setForeground(Color.WHITE);
@@ -188,7 +282,7 @@ public final class LauncherMain extends JFrame {
         if (Files.exists(local)) { status.setText("Using local manifest: " + local); return new String(Files.readAllBytes(local), StandardCharsets.UTF_8); }
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build();
         HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create(manifestUrl.getText().trim()))
-                .header("User-Agent", "Gen5Craft-Launcher/1.3.0").GET().build(), HttpResponse.BodyHandlers.ofString());
+                .header("User-Agent", "Gen5Craft-Launcher/1.4.0").GET().build(), HttpResponse.BodyHandlers.ofString());
         if (res.statusCode() != 200) throw new IllegalStateException("Manifest HTTP " + res.statusCode());
         return res.body();
     }
@@ -196,7 +290,7 @@ public final class LauncherMain extends JFrame {
         Files.createDirectories(dest.getParent());
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).followRedirects(HttpClient.Redirect.NORMAL).build();
         HttpResponse<InputStream> res = http.send(HttpRequest.newBuilder(URI.create(url))
-                .header("User-Agent", "Gen5Craft-Launcher/1.3.0").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+                .header("User-Agent", "Gen5Craft-Launcher/1.4.0").GET().build(), HttpResponse.BodyHandlers.ofInputStream());
         if (res.statusCode() != 200) throw new IllegalStateException("Download HTTP " + res.statusCode() + " for " + url);
         Path tmp = dest.resolveSibling(dest.getFileName().toString() + ".part");
         InputStream in = res.body(); OutputStream out = Files.newOutputStream(tmp);

@@ -102,7 +102,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 1.3.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 1.4.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -205,6 +205,21 @@ public final class MainMenuFrame extends JFrame {
         p.add(south, BorderLayout.SOUTH);
         return p;
     }
+    /** Username from the launcher's local profile (profile.json), if any. */
+    private String localProfileName() {
+        try {
+            Path f = gameDir.resolve("profile.json");
+            if (Files.exists(f)) {
+                String json = new String(Files.readAllBytes(f), java.nio.charset.StandardCharsets.UTF_8);
+                int k = json.indexOf("\"name\": \"");
+                if (k >= 0) {
+                    int s = k + 9, e = json.indexOf('"', s);
+                    if (e > s) return json.substring(s, e);
+                }
+            }
+        } catch (Exception ignored) {}
+        return "Gen5Player";
+    }
     private void refreshWorlds(DefaultListModel<String> model) {
         model.clear();
         try {
@@ -269,7 +284,7 @@ public final class MainMenuFrame extends JFrame {
             }
         });
         form.add(check);
-        final JTextField userField = new JTextField("Gen5Player");
+        final JTextField userField = new JTextField(localProfileName());
         form.add(white("Username (offline-mode)"));
         form.add(userField);
         JButton loginBtn = new JButton("Login (offline) -> Configuration -> Play");
