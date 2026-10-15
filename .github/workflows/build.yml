@@ -1,0 +1,87 @@
+name: build-windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 25 (matches Minecraft 26.3 javaVersion)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Compile
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          $src = Get-ChildItem -Recurse src/main/java -Filter *.java | ForEach-Object { $_.FullName }
+          javac --release 17 -encoding UTF-8 -d out $src
+          $test = Get-ChildItem -Recurse src/test/java -Filter *.java | ForEach-Object { $_.FullName }
+          javac --release 17 -encoding UTF-8 -cp out -d out-test $test
+
+      - name: Run tests
+        shell: pwsh
+        run: java -cp "out;out-test" com.gen5craft.TestMain
+
+      - name: Package runnable jar (manifest like a client jar)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          @"
+          Main-Class: com.gen5craft.Main
+          Implementation-Title: Gen5Craft
+          Implementation-Version: 0.1.0
+          "@ | Set-Content -Encoding ascii manifest.mf
+          jar cfm dist/Gen5Craft.jar manifest.mf -C out .
+
+      - name: Windows app image (jpackage)
+        shell: pwsh
+        run: |
+          jpackage --type app-image --name Gen5Craft --dest dist --input dist --main-jar Gen5Craft.jar --main-class com.gen5craft.Main --java-options "-Xmx2G"
+          Compress-Archive -Path dist/Gen5Craft -DestinationPath dist/Gen5Craft-windows.zip -Force
+
+      - name: Download manifest for the client jar
+        shell: pwsh
+        run: |
+          $jarHash = (Get-FileHash dist/Gen5Craft.jar -Algorithm SHA256).Hash.ToLower()
+          $zipHash = (Get-FileHash dist/Gen5Craft-windows.zip -Algorithm SHA256).Hash.ToLower()
+          $manifest = [ordered]@{
+            name = "Gen5Craft"; version = "0.1.0"; platform = "windows";
+            mainClass = "com.gen5craft.Main";
+            game = [ordered]@{ generation = 5; range = "1.20.5-26.3"; latestData = "26.3";
+              mojangManifest = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" }
+            files = @(
+              [ordered]@{ name = "Gen5Craft.jar"; sha256 = $jarHash },
+              [ordered]@{ name = "Gen5Craft-windows.zip"; sha256 = $zipHash }
+            )
+          }
+          $manifest | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 dist/gen5craft-manifest.json
+          Get-Content dist/gen5craft-manifest.json
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gen5Craft-windows
+          path: |
+            dist/Gen5Craft.jar
+            dist/Gen5Craft-windows.zip
+            dist/gen5craft-manifest.json
+
+      - name: Publish release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Gen5Craft.jar
+            dist/Gen5Craft-windows.zip
+            dist/gen5craft-manifest.json

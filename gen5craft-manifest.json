@@ -1,0 +1,13 @@
+{
+  "name": "Gen5Craft",
+  "version": "0.1.0",
+  "platform": "windows",
+  "mainClass": "com.gen5craft.Main",
+  "game": {
+    "generation": 5,
+    "range": "1.20.5-26.3",
+    "latestData": "26.3",
+    "mojangManifest": "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+    "note": "CI regenerates this file with real SHA-256 hashes for every build (dist/gen5craft-manifest.json)."
+  }
+}
