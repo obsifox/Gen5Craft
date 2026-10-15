@@ -7,6 +7,7 @@ import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.RegistryExtractor;
 import com.gen5craft.core.VarInt;
 import com.gen5craft.core.WorldModel;
+import com.gen5craft.render.SoftwareRenderer;
 
 /** Dependency-free test harness (no JUnit download needed on CI). */
 public final class TestMain {
@@ -54,6 +55,19 @@ public final class TestMain {
         check(w.dataVersion.equals("26.3"), "world pinned to latest 26.3 data");
         check(WorldModel.list(tmpSaves).size() == 1, "world listed after create");
         check(WorldModel.fromJson(w.toJson(), "x").name.equals(w.name), "world metadata roundtrip");
+        SoftwareRenderer renderer = new SoftwareRenderer();
+        boolean heightsOk = true;
+        for (int x = 0; x < SoftwareRenderer.SIZE; x++) for (int z = 0; z < SoftwareRenderer.SIZE; z++) {
+            int h = renderer.heightAt(x, z); if (h < 1 || h > 9) heightsOk = false;
+        }
+        check(heightsOk, "voxel heights within 1..9");
+        check(renderer.waterColumns() > 0, "scene contains water columns");
+        java.awt.image.BufferedImage frame = SoftwareRenderer.renderToImage(160, 120, 0.6);
+        java.util.Set<Integer> colors = new java.util.HashSet<Integer>();
+        for (int y = 0; y < frame.getHeight(); y += 6) for (int x = 0; x < frame.getWidth(); x += 6) colors.add(frame.getRGB(x, y));
+        check(colors.size() > 5, "rendered frame has varied colors (" + colors.size() + ")");
+        java.awt.image.BufferedImage frame2 = SoftwareRenderer.renderToImage(160, 120, 0.6);
+        check(frame.getRGB(80, 60) == frame2.getRGB(80, 60), "rendering is deterministic");
         System.out.println("ALL TESTS PASSED");
     }
 }

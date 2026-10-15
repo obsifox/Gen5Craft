@@ -6,6 +6,7 @@ import com.gen5craft.core.Gen5Versions;
 import com.gen5craft.core.ServerPinger;
 import com.gen5craft.core.Settings;
 import com.gen5craft.core.WorldModel;
+import com.gen5craft.render.SoftwareRenderer;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -95,7 +96,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 0.4.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 0.5.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -179,7 +180,11 @@ public final class MainMenuFrame extends JFrame {
         download.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) { startDownload(bar); }
         });
-        row.add(create); row.add(download);
+        JButton preview3d = new JButton("3D Preview (Phase 3)");
+        preview3d.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) { openRendererPreview(); }
+        });
+        row.add(create); row.add(download); row.add(preview3d);
         JPanel south = new JPanel(new BorderLayout()); south.setOpaque(false);
         south.add(row, BorderLayout.NORTH); south.add(bar, BorderLayout.SOUTH);
         p.add(south, BorderLayout.SOUTH);
@@ -350,6 +355,47 @@ public final class MainMenuFrame extends JFrame {
         box.add(fa); box.add(en); box.add(apply);
         p.add(box, BorderLayout.CENTER);
         return p;
+    }
+
+    // Phase 3: software 3D preview. Renders at the configured render scale
+    // into a reused off-screen buffer; FPS is capped and the PERFORMANCE
+    // profile is fully static, so weak systems never spin.
+    private void openRendererPreview() {
+        final JDialog dlg = new JDialog(this, "Gen5Craft - 3D Preview (software renderer)", false);
+        dlg.setSize(900, 620);
+        dlg.setLocationRelativeTo(this);
+        final SoftwareRenderer renderer = new SoftwareRenderer();
+        final Settings.Quality q = settings.effectiveQuality();
+        final int scalePct = q == Settings.Quality.PERFORMANCE ? Math.min(settings.renderScalePercent, 60) : settings.renderScalePercent;
+        final double[] angleHolder = {0.6};
+        final JPanel canvas = new JPanel() {
+            private BufferedImage buf;
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                int w = Math.max(160, getWidth() * scalePct / 100);
+                int h = Math.max(120, getHeight() * scalePct / 100);
+                if (buf == null || buf.getWidth() != w || buf.getHeight() != h) buf = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+                renderer.render(buf, angleHolder[0]);
+                g.drawImage(buf, 0, 0, getWidth(), getHeight(), null);
+                g.setColor(new Color(255, 255, 255, 190));
+                g.drawString("GPU mode: " + settings.gpuMode + " | Quality: " + q + " | Render scale: " + scalePct + "% | CPU software voxel renderer", 12, 20);
+            }
+        };
+        dlg.setContentPane(canvas);
+        if (q != Settings.Quality.PERFORMANCE && settings.panoramaAnimation) {
+            int fps = settings.fpsLimit == 0 ? 30 : Math.min(settings.fpsLimit, 30);
+            final Timer timer = new Timer(Math.max(33, 1000 / Math.max(1, fps)), new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    angleHolder[0] += 0.02;
+                    canvas.repaint();
+                }
+            });
+            timer.start();
+            dlg.addWindowListener(new java.awt.event.WindowAdapter() {
+                public void windowClosed(java.awt.event.WindowEvent e) { timer.stop(); }
+            });
+        }
+        dlg.setVisible(true);
     }
 
     private void confirmExit() {
