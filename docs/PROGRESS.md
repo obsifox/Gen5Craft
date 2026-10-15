@@ -1,7 +1,7 @@
 # Gen5Craft Progress
 
 Foundation roadmap: [####################] 100% (v1.0.0, hotfix v1.0.1)
-Gameplay roadmap:   [################----] 80% (after v1.4.0)
+Gameplay roadmap:   [####################] 100% (after v1.5.0)
 
 - [x] Phase 6 - Interactive local play session (world -> 3D session, camera
       rotate/zoom by keys, drag and wheel; GPU/quality aware) `v1.1.0`
@@ -15,10 +15,13 @@ Gameplay roadmap:   [################----] 80% (after v1.4.0)
       PNG), editable profile name, cosmetic cape, offline UUID, saved as
       profile.json and used as the client username. Local account only —
       not a Microsoft/Mojang login (owner-directed scope change) `v1.4.0`
-- [ ] Phase 10 - Public release polish (owner decision) <- NEXT
+- [x] Phase 10 - Public release polish: full release notes, public
+      README/install flow, final version v1.5.0 published publicly on
+      GitHub (repository + release) by owner decision `v1.5.0`
 
-Remaining on the gameplay roadmap: 20% (Phase 10 only). Honest boundaries:
-online-mode servers still require real Microsoft authentication, which the
-local profile does not provide or imitate; block collision uses full cubes
-for now; entity movement packets and server container sync are later
-slices; public release is the owner's call.
+Remaining on the gameplay roadmap: 0% — both roadmaps complete.
+Honest boundaries that remain true after v1.5.0: online-mode servers still
+require real Microsoft authentication, which the local profile does not
+provide or imitate; block collision uses full cubes for now; entity
+movement packets and server container sync are later slices; the physics
+player is not yet first-person controlled (orbit camera remains).

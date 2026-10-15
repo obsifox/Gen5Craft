@@ -40,13 +40,13 @@ jobs:
           @"
           Main-Class: com.gen5craft.Main
           Implementation-Title: Gen5Craft
-          Implementation-Version: 1.4.0
+          Implementation-Version: 1.5.0
           "@ | Set-Content -Encoding ascii manifest.mf
           jar cfm dist/Gen5Craft.jar manifest.mf -C out com/gen5craft/Main.class -C out com/gen5craft/core -C out com/gen5craft/ui -C out com/gen5craft/render -C out com/gen5craft/net
           @"
           Main-Class: com.gen5craft.launcher.LauncherMain
           Implementation-Title: Gen5Craft Launcher
-          Implementation-Version: 1.4.0
+          Implementation-Version: 1.5.0
           "@ | Set-Content -Encoding ascii launcher-manifest.mf
           jar cfm dist/Gen5Craft-Launcher.jar launcher-manifest.mf -C out com/gen5craft/launcher
 
@@ -92,7 +92,7 @@ jobs:
           $launcherZipHash = (Get-FileHash dist/Gen5Craft-Launcher-windows.zip -Algorithm SHA256).Hash.ToLower()
           $installerHash = (Get-FileHash dist/Install-Gen5Craft.ps1 -Algorithm SHA256).Hash.ToLower()
           $manifest = [ordered]@{
-            name = "Gen5Craft"; version = "1.4.0"; platform = "windows";
+            name = "Gen5Craft"; version = "1.5.0"; platform = "windows";
             mainClass = "com.gen5craft.Main";
             game = [ordered]@{ generation = 5; range = "1.20.5-26.3"; latestData = "26.3";
               mojangManifest = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" }
@@ -108,13 +108,29 @@ jobs:
           Get-Content dist/gen5craft-manifest.json
 
       # NOTE: Actions artifact storage quota for this account is full, so the
-      # downloadable build is published as (draft) Release assets instead.
+      # downloadable build is published as Release assets instead.
       - name: Publish downloadable release assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.0
-          name: Gen5Craft 1.4.0
-          draft: true
+          tag_name: v1.5.0
+          name: Gen5Craft 1.5.0
+          draft: false
+          body: |
+            **Gen5Craft 1.5.0 — first public release.** A Windows-first Java 25 client & launcher for
+            Generation 5 of Minecraft Java Edition (1.20.5 → 26.3, protocol 766+).
+
+            Highlights:
+            - Gen-5 main menu (panorama, RTL Persian + English), GPU/quality settings, Mojang-manifest game-data downloader with SHA-1 verification.
+            - Offline-mode login into Play state; live Level Chunk With Light decoding rendered in the built-in 3D session.
+            - AABB player physics on decoded chunks, live entity tracking, 36-slot inventory with hotbar HUD.
+            - **Local launcher profile**: profile card renders your head from the game's default Steve skin (extracted from the official client jar you downloaded, or a custom skin PNG); set your name, skin and a cosmetic cape. Stored locally as `profile.json` — this is a local account, **not** a Microsoft/Mojang login; online-mode servers still require real Microsoft authentication.
+
+            Downloads: `Gen5Craft-Launcher-windows.zip` (recommended), `Gen5Craft-windows.zip`, standalone
+            `Gen5Craft.jar` / `Gen5Craft-Launcher.jar` (need Java 25), or `Install-Gen5Craft.ps1`.
+            SHA-256 hashes for every file are in `gen5craft-manifest.json`.
+
+            Unofficial fan project; not affiliated with Mojang or Microsoft. Game data is downloaded
+            from Mojang's official manifest at runtime by the user.
           files: |
             dist/Gen5Craft.jar
             dist/Gen5Craft-windows.zip

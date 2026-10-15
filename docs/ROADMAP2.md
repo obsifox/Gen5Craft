@@ -26,9 +26,12 @@
       This is a local account only — it is never presented as a
       Microsoft/Mojang login, and online-mode servers still stop at the
       encryption boundary. `v1.4.0`
-- [ ] Phase 10 — Public release polish (owner decision only) <- NEXT
+- [x] Phase 10 — Public release polish: full release notes, public
+      README/install flow, and the first public release (repository +
+      release published by owner decision). `v1.5.0`
 
-Gameplay roadmap weights: each phase 20%. After v1.4.0: **80%**.
+Gameplay roadmap weights: each phase 20%. After v1.5.0: **100%** — both
+roadmaps complete.
 
 Honest boundaries after Phase 9: physics treats every non-fluid block as a
 full cube (slab/stair shapes later); entity *movement* packets are not

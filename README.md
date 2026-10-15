@@ -18,9 +18,10 @@ Local worlds/maps always run on the latest data and disable nothing.
 - Persian (RTL) by default, English (LTR) included.
 
 ## Install like a client jar
-Download `Gen5Craft.jar` (or `Gen5Craft-windows.zip`) from the GitHub release
-of this repo, or use `gen5craft-manifest.json` which lists the files with
-SHA-256 hashes. On first use, the Singleplayer tab can download the official
+Go to the [latest release](https://github.com/obsifox/Gen5Craft/releases/latest)
+and download `Gen5Craft-Launcher-windows.zip` (recommended), or
+`Gen5Craft.jar` / `Gen5Craft-windows.zip`, or use `gen5craft-manifest.json`
+which lists the files with SHA-256 hashes. On first use, the Singleplayer tab can download the official
 26.3 data (client jar, 114 libraries, asset index 34) through Mojang's own
 version manifest, verifying every file by SHA-1 and skipping valid files.
 
@@ -69,8 +70,9 @@ skin (taken from the downloaded official client jar, or from a custom skin
 PNG), and you can set your profile name, skin and a cosmetic cape there.
 The profile is a local account stored on your own PC (`profile.json`); its
 name is used as the offline-mode username, and its offline UUID is shown on
-the card. It is not a Microsoft/Mojang login. Gameplay progress: **80%**;
-next is Phase 10 (public release polish, owner decision). See
+the card. It is not a Microsoft/Mojang login. Phase 10 shipped in
+**v1.5.0**: public release polish and the first public release of this
+repository. Gameplay progress: **100%** — both roadmaps are complete. See
 `docs/ROADMAP2.md`.
 Hardening & performance notes: `docs/SECURITY_AND_PERFORMANCE.md`.
 See `docs/PROGRESS.md` (regenerated every release).
