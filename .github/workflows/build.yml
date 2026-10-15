@@ -24,7 +24,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
-          $src = Get-ChildItem -Recurse src/main/java -Filter *.java | ForEach-Object { $_.FullName }
+          $src = Get-ChildItem -Recurse src/main/java, launcher/src/main/java -Filter *.java | ForEach-Object { $_.FullName }
           javac --release 17 -encoding UTF-8 -d out $src
           $test = Get-ChildItem -Recurse src/test/java -Filter *.java | ForEach-Object { $_.FullName }
           javac --release 17 -encoding UTF-8 -cp out -d out-test $test
@@ -33,36 +33,55 @@ jobs:
         shell: pwsh
         run: java -cp "out;out-test" com.gen5craft.TestMain
 
-      - name: Package runnable jar (manifest like a client jar)
+      - name: Package runnable jars (client + launcher)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
+          New-Item -ItemType Directory -Force dist, stage-client, stage-launcher | Out-Null
+          Copy-Item -Recurse out/com/gen5craft/core stage-client/com/gen5craft/
+          Copy-Item -Recurse out/com/gen5craft/ui stage-client/com/gen5craft/
+          Copy-Item out/com/gen5craft/Main.class stage-client/com/gen5craft/
+          Copy-Item -Recurse out/com/gen5craft/launcher stage-launcher/com/gen5craft/
           @"
           Main-Class: com.gen5craft.Main
           Implementation-Title: Gen5Craft
-          Implementation-Version: 0.2.0
+          Implementation-Version: 0.3.0
           "@ | Set-Content -Encoding ascii manifest.mf
-          jar cfm dist/Gen5Craft.jar manifest.mf -C out .
+          jar cfm dist/Gen5Craft.jar manifest.mf -C stage-client .
+          @"
+          Main-Class: com.gen5craft.launcher.LauncherMain
+          Implementation-Title: Gen5Craft Launcher
+          Implementation-Version: 0.3.0
+          "@ | Set-Content -Encoding ascii launcher-manifest.mf
+          jar cfm dist/Gen5Craft-Launcher.jar launcher-manifest.mf -C stage-launcher .
 
-      - name: Windows app image (jpackage)
+      - name: Windows app images (jpackage)
         shell: pwsh
         run: |
-          jpackage --type app-image --name Gen5Craft --dest dist --input dist --main-jar Gen5Craft.jar --main-class com.gen5craft.Main --java-options "-Xmx2G"
+          New-Item -ItemType Directory -Force in-client, in-launcher | Out-Null
+          Copy-Item dist/Gen5Craft.jar in-client/
+          Copy-Item dist/Gen5Craft-Launcher.jar in-launcher/
+          jpackage --type app-image --name Gen5Craft --dest dist --input in-client --main-jar Gen5Craft.jar --main-class com.gen5craft.Main --java-options "-Xmx2G"
           Compress-Archive -Path dist/Gen5Craft -DestinationPath dist/Gen5Craft-windows.zip -Force
+          jpackage --type app-image --name Gen5CraftLauncher --dest dist --input in-launcher --main-jar Gen5Craft-Launcher.jar --main-class com.gen5craft.launcher.LauncherMain --java-options "-Xmx512M"
+          Compress-Archive -Path dist/Gen5CraftLauncher -DestinationPath dist/Gen5Craft-Launcher-windows.zip -Force
 
       - name: Download manifest for the client jar
         shell: pwsh
         run: |
           $jarHash = (Get-FileHash dist/Gen5Craft.jar -Algorithm SHA256).Hash.ToLower()
           $zipHash = (Get-FileHash dist/Gen5Craft-windows.zip -Algorithm SHA256).Hash.ToLower()
+          $launcherJarHash = (Get-FileHash dist/Gen5Craft-Launcher.jar -Algorithm SHA256).Hash.ToLower()
+          $launcherZipHash = (Get-FileHash dist/Gen5Craft-Launcher-windows.zip -Algorithm SHA256).Hash.ToLower()
           $manifest = [ordered]@{
-            name = "Gen5Craft"; version = "0.2.0"; platform = "windows";
+            name = "Gen5Craft"; version = "0.3.0"; platform = "windows";
             mainClass = "com.gen5craft.Main";
             game = [ordered]@{ generation = 5; range = "1.20.5-26.3"; latestData = "26.3";
               mojangManifest = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" }
             files = @(
               [ordered]@{ name = "Gen5Craft.jar"; sha256 = $jarHash },
-              [ordered]@{ name = "Gen5Craft-windows.zip"; sha256 = $zipHash }
+              [ordered]@{ name = "Gen5Craft-windows.zip"; sha256 = $zipHash },
+              [ordered]@{ name = "Gen5Craft-Launcher.jar"; sha256 = $launcherJarHash },
+              [ordered]@{ name = "Gen5Craft-Launcher-windows.zip"; sha256 = $launcherZipHash }
             )
           }
           $manifest | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 dist/gen5craft-manifest.json
@@ -73,10 +92,12 @@ jobs:
       - name: Publish downloadable release assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.2.0
-          name: Gen5Craft 0.2.0
+          tag_name: v0.3.0
+          name: Gen5Craft 0.3.0
           draft: true
           files: |
             dist/Gen5Craft.jar
             dist/Gen5Craft-windows.zip
+            dist/Gen5Craft-Launcher.jar
+            dist/Gen5Craft-Launcher-windows.zip
             dist/gen5craft-manifest.json

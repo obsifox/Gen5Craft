@@ -36,8 +36,12 @@ the Windows app image, and publishes release assets ready to download.
 
 ## Status / roadmap
 Phase 1 (v0.1.0): menu, GPU settings, Gen-5 version gating, manifest downloader.
-Phase 2.1 (v0.2.0, this build): Gen-5 server status ping (VarInt protocol
-foundation, live version/protocol/players detection) in the Multiplayer tab. The generation model is fixed: crossing below 1.20.5 is a
+Phase 2.1 (v0.2.0): Gen-5 server status ping (VarInt protocol
+foundation, live version/protocol/players detection) in the Multiplayer tab.
+Launcher (v0.3.0, this build): `Gen5Craft-Launcher.jar` /
+`Gen5Craft-Launcher-windows.zip` — checks `gen5craft-manifest.json`, installs
+the client jar with SHA-256 verification and launches it. The downloader now
+also writes a Phase-2.2 data summary (`Datas/gen5-data-summary.json`). The generation model is fixed: crossing below 1.20.5 is a
 different generation and is intentionally rejected, not emulated by disabling.
 Later phases add the 3D engine and live server protocol on this foundation.
 

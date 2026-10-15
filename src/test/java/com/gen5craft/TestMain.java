@@ -2,6 +2,8 @@ package com.gen5craft;
 
 import com.gen5craft.core.FeatureGate;
 import com.gen5craft.core.Gen5Versions;
+import com.gen5craft.core.DataSummary;
+import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.VarInt;
 
 /** Dependency-free test harness (no JUnit download needed on CI). */
@@ -31,6 +33,15 @@ public final class TestMain {
         check(Gen5Versions.byProtocol(766) != null && Gen5Versions.byProtocol(766).id.equals("1.20.5"), "protocol 766 -> 1.20.5");
         check(Gen5Versions.byProtocol(774) != null && Gen5Versions.byProtocol(774).id.equals("1.21.11"), "protocol 774 -> 1.21.11");
         check(Gen5Versions.byProtocol(765) == null, "protocol 765 (1.20.4) is previous generation");
+        GameDownloader.Plan plan = new GameDownloader.Plan();
+        plan.versionId = "26.3"; plan.clientSha1 = "e877b6a07acd633fb3bb475002175cec036e7b87";
+        plan.clientSize = 41483720L; plan.assetIndexId = "34";
+        plan.libraries.add(new String[]{"https://example.invalid/lib.jar", "abc", "lib.jar"});
+        String summary = DataSummary.buildJson(plan);
+        check(summary.contains("\"version\": \"26.3\""), "data summary carries 26.3");
+        check(summary.contains("\"librariesCount\": 1"), "data summary counts libraries");
+        String fakeManifest = "{\"files\": [{\"name\": \"Gen5Craft.jar\", \"sha256\": \"deadbeef\"}]}";
+        check("deadbeef".equals(com.gen5craft.launcher.LauncherMain.extractSha(fakeManifest, "Gen5Craft.jar")), "launcher reads sha256 from manifest");
         System.out.println("ALL TESTS PASSED");
     }
 }

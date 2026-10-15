@@ -92,6 +92,7 @@ public final class GameDownloader {
             downloadVerified(lib[0], lib[1], gameDir.resolve("libraries/" + lib[2]));
             report(progress, lib[2], ++done[0], total);
         }
+        DataSummary.write(plan, gameDir);
         if (plan.assetIndexUrl != null) {
             downloadVerified(plan.assetIndexUrl, null,
                     gameDir.resolve("assets/indexes/" + plan.assetIndexId + ".json"));
