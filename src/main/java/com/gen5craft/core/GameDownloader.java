@@ -93,6 +93,8 @@ public final class GameDownloader {
             report(progress, lib[2], ++done[0], total);
         }
         DataSummary.write(plan, gameDir);
+        RegistryExtractor.writeFull(plan.versionId,
+            gameDir.resolve("versions/" + plan.versionId + "/" + plan.versionId + ".jar"), gameDir);
         if (plan.assetIndexUrl != null) {
             downloadVerified(plan.assetIndexUrl, null,
                     gameDir.resolve("assets/indexes/" + plan.assetIndexId + ".json"));

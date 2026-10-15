@@ -48,3 +48,11 @@ Later phases add the 3D engine and live server protocol on this foundation.
 ## Disclaimer
 Unofficial fan project; not affiliated with Mojang or Microsoft. Game data is
 downloaded from Mojang's official manifest at runtime by the user.
+
+
+## Progress (text)
+Weights: Phase 1 = 10, Ping 2.1 = 5, Launcher = 10, Data 2.2 = 10,
+World model 2.3 = 10, 3D renderer Phase 3 = 25, Play protocol Phase 4 = 25,
+Hardening Phase 5 = 5 (total 100). Done after v0.4.0: **45%** —
+remaining 55% is Phase 3 (25), Phase 4 (25) and Phase 5 (5).
+See `docs/PROGRESS.md` (regenerated every release).

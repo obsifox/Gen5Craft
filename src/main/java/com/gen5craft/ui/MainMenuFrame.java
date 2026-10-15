@@ -5,6 +5,7 @@ import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.Gen5Versions;
 import com.gen5craft.core.ServerPinger;
 import com.gen5craft.core.Settings;
+import com.gen5craft.core.WorldModel;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -94,7 +95,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 0.3.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 0.4.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -167,8 +168,9 @@ public final class MainMenuFrame extends JFrame {
         create.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 try {
-                    Path w = gameDir.resolve("saves/World-" + System.currentTimeMillis() / 1000L);
-                    Files.createDirectories(w);
+                    // Phase 2.3: worlds are created through the WorldModel
+                    // (metadata pinned to the latest Gen-5 data version).
+                    WorldModel.create(gameDir.resolve("saves"), "World");
                     refreshWorlds(model);
                 } catch (Exception ex) { showError(ex); }
             }
@@ -185,12 +187,9 @@ public final class MainMenuFrame extends JFrame {
     }
     private void refreshWorlds(DefaultListModel<String> model) {
         model.clear();
-        Path saves = gameDir.resolve("saves");
         try {
-            if (Files.isDirectory(saves)) {
-                DirectoryStream<Path> ds = Files.newDirectoryStream(saves);
-                try { for (Path d : ds) if (Files.isDirectory(d)) model.addElement(d.getFileName().toString()); }
-                finally { ds.close(); }
+            for (WorldModel w : WorldModel.list(gameDir.resolve("saves"))) {
+                model.addElement(w.name + "  [" + w.dataVersion + "]");
             }
         } catch (Exception ignored) {}
         if (model.isEmpty()) model.addElement(i18n.t("worldsEmpty"));

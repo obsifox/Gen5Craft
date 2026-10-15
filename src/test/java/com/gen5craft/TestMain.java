@@ -4,7 +4,9 @@ import com.gen5craft.core.FeatureGate;
 import com.gen5craft.core.Gen5Versions;
 import com.gen5craft.core.DataSummary;
 import com.gen5craft.core.GameDownloader;
+import com.gen5craft.core.RegistryExtractor;
 import com.gen5craft.core.VarInt;
+import com.gen5craft.core.WorldModel;
 
 /** Dependency-free test harness (no JUnit download needed on CI). */
 public final class TestMain {
@@ -12,7 +14,7 @@ public final class TestMain {
         if (!cond) throw new AssertionError(msg);
         System.out.println("PASS: " + msg);
     }
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         check(Gen5Versions.isGen5("1.20.5"), "1.20.5 is Gen5 (first)");
         check(Gen5Versions.isGen5("26.3"), "26.3 is Gen5 (latest)");
         check(!Gen5Versions.isGen5("1.20.4"), "1.20.4 is NOT Gen5 (previous generation)");
@@ -42,6 +44,16 @@ public final class TestMain {
         check(summary.contains("\"librariesCount\": 1"), "data summary counts libraries");
         String fakeManifest = "{\"files\": [{\"name\": \"Gen5Craft.jar\", \"sha256\": \"deadbeef\"}]}";
         check("deadbeef".equals(com.gen5craft.launcher.LauncherMain.extractSha(fakeManifest, "Gen5Craft.jar")), "launcher reads sha256 from manifest");
+        check(RegistryExtractor.categoryOf("assets/minecraft/blockstates/stone.json").equals("blockstates"), "category blockstates");
+        check(RegistryExtractor.categoryOf("data/minecraft/recipe/x.json").equals("recipes"), "category recipes");
+        RegistryExtractor.Index idx = new RegistryExtractor.Index();
+        idx.totalEntries = 2; idx.categories.put("blockstates", 2); idx.allNames.add("a"); idx.allNames.add("b");
+        check(RegistryExtractor.buildJson("26.3", idx, false).contains("\"totalEntries\": 2"), "registry index json");
+        java.nio.file.Path tmpSaves = java.nio.file.Files.createTempDirectory("gen5-test-saves");
+        WorldModel w = WorldModel.create(tmpSaves, "My World");
+        check(w.dataVersion.equals("26.3"), "world pinned to latest 26.3 data");
+        check(WorldModel.list(tmpSaves).size() == 1, "world listed after create");
+        check(WorldModel.fromJson(w.toJson(), "x").name.equals(w.name), "world metadata roundtrip");
         System.out.println("ALL TESTS PASSED");
     }
 }
