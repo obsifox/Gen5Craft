@@ -5,6 +5,7 @@ import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.Gen5Versions;
 import com.gen5craft.core.ServerPinger;
 import com.gen5craft.net.LoginSession;
+import com.gen5craft.core.PerfProfile;
 import com.gen5craft.core.Settings;
 import com.gen5craft.core.WorldModel;
 import com.gen5craft.render.SoftwareRenderer;
@@ -97,7 +98,7 @@ public final class MainMenuFrame extends JFrame {
         sub.setForeground(new Color(180, 220, 255, 200));
         JPanel logoBox = new JPanel(new BorderLayout()); logoBox.setOpaque(false);
         logoBox.add(logo, BorderLayout.CENTER); logoBox.add(sub, BorderLayout.SOUTH);
-        versionLabel = new JLabel("Gen5Craft 0.6.0  |  Minecraft Java " + Gen5Versions.latest()
+        versionLabel = new JLabel("Gen5Craft 1.0.0  |  Minecraft Java " + Gen5Versions.latest()
                 + "  |  Gen 5 (" + Gen5Versions.first() + " - " + Gen5Versions.latest() + ")");
         versionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         versionLabel.setForeground(new Color(255, 255, 255, 190));
@@ -401,7 +402,8 @@ public final class MainMenuFrame extends JFrame {
         dlg.setLocationRelativeTo(this);
         final SoftwareRenderer renderer = new SoftwareRenderer();
         final Settings.Quality q = settings.effectiveQuality();
-        final int scalePct = q == Settings.Quality.PERFORMANCE ? Math.min(settings.renderScalePercent, 60) : settings.renderScalePercent;
+        final PerfProfile perf = PerfProfile.from(settings);
+        final int scalePct = perf.effectiveScale(settings);
         final double[] angleHolder = {0.6};
         final JPanel canvas = new JPanel() {
             private BufferedImage buf;
@@ -417,8 +419,8 @@ public final class MainMenuFrame extends JFrame {
             }
         };
         dlg.setContentPane(canvas);
-        if (q != Settings.Quality.PERFORMANCE && settings.panoramaAnimation) {
-            int fps = settings.fpsLimit == 0 ? 30 : Math.min(settings.fpsLimit, 30);
+        if (!perf.staticScene && settings.panoramaAnimation) {
+            int fps = Math.min(perf.targetFps, 30);
             final Timer timer = new Timer(Math.max(33, 1000 / Math.max(1, fps)), new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
                     angleHolder[0] += 0.02;

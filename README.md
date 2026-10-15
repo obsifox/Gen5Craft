@@ -53,7 +53,6 @@ downloaded from Mojang's official manifest at runtime by the user.
 ## Progress (text)
 Weights: Phase 1 = 10, Ping 2.1 = 5, Launcher = 10, Data 2.2 = 10,
 World model 2.3 = 10, 3D renderer Phase 3 = 25, Play protocol Phase 4 = 25,
-Hardening Phase 5 = 5 (total 100). Done after v0.5.0: **70%** —
-remaining 30% is Phase 4 (25) and Phase 5 (5). Phase 3 shipped a CPU-software
-voxel renderer (Singleplayer -> 3D Preview) honoring the GPU settings.
+Hardening Phase 5 = 5 (total 100). Roadmap completed at **v1.0.0 (100%)**. Install: see `docs/INSTALL.md`.
+Hardening & performance notes: `docs/SECURITY_AND_PERFORMANCE.md`.
 See `docs/PROGRESS.md` (regenerated every release).

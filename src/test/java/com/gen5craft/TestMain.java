@@ -7,6 +7,8 @@ import com.gen5craft.core.GameDownloader;
 import com.gen5craft.core.RegistryExtractor;
 import com.gen5craft.core.VarInt;
 import com.gen5craft.core.WorldModel;
+import com.gen5craft.core.PerfProfile;
+import com.gen5craft.core.Settings;
 import com.gen5craft.net.LoginSession;
 import com.gen5craft.net.PacketIO;
 import com.gen5craft.render.SoftwareRenderer;
@@ -84,6 +86,15 @@ public final class TestMain {
         check(LoginSession.buildHandshake(766, "localhost", 25565).length > 8, "handshake packet builds");
         check(LoginSession.buildLoginStart("Gen5Player").length == 1 + 10 + 16, "login start = name + UUID");
         check(LoginSession.buildKnownPacks("1.21.5").length > 10, "known packs packet builds");
+        Settings strong = new Settings(); strong.quality = Settings.Quality.QUALITY; strong.fpsLimit = 120; strong.renderScalePercent = 100;
+        check(PerfProfile.from(strong).targetFps == 120, "perf QUALITY keeps user FPS");
+        check(PerfProfile.from(strong).effectiveScale(strong) == 100, "perf QUALITY full scale");
+        Settings weak = new Settings(); weak.quality = Settings.Quality.PERFORMANCE; weak.fpsLimit = 120; weak.renderScalePercent = 100;
+        check(PerfProfile.from(weak).staticScene, "perf PERFORMANCE is static");
+        check(PerfProfile.from(weak).effectiveScale(weak) == 60, "perf PERFORMANCE caps scale at 60");
+        check(com.gen5craft.launcher.LauncherMain.compareVersions("1.0.0", "0.9.9") > 0, "version compare 1.0.0 > 0.9.9");
+        check(com.gen5craft.launcher.LauncherMain.compareVersions("0.6.0", "0.6.0") == 0, "version compare equal");
+        check(com.gen5craft.launcher.LauncherMain.compareVersions("0.5.9", "0.6.0") < 0, "version compare older");
         System.out.println("ALL TESTS PASSED");
     }
 }
